@@ -4,10 +4,12 @@ import { DialogueBox } from "../components/DialogueBox";
 
 export function Home({
   me,
+  onTown,
   onWardrobe,
   onAccount,
 }: {
   me: Me;
+  onTown: () => void;
   onWardrobe: () => void;
   onAccount: () => void;
 }) {
@@ -29,10 +31,15 @@ export function Home({
         </p>
         {profile.pronouns && <p className="hint">{profile.pronouns}</p>}
         {profile.bio && <p className="hint">{profile.bio}</p>}
-        <DialogueBox text="You're all set! The Town Square is still being built. Check back soon to meet your friends there." />
+        <DialogueBox text="You're all set! Head to the Town Square to look around." />
         <ul className="menu">
           <li>
-            <button className="menu-item" onClick={onWardrobe} autoFocus>
+            <button className="menu-item btn-primary" onClick={onTown} autoFocus>
+              Enter the Town Square
+            </button>
+          </li>
+          <li>
+            <button className="menu-item" onClick={onWardrobe}>
               Wardrobe
             </button>
           </li>

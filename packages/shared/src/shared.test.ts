@@ -60,6 +60,14 @@ describe("profanity filter", () => {
       expect(containsProfanity(ok), ok).toBe(false);
     }
   });
+  it("doesn't read plain numbers as leetspeak", () => {
+    expect(containsProfanity("Bot 455")).toBe(false);
+    expect(containsProfanity("bot_455")).toBe(false);
+    expect(containsProfanity("a55")).toBe(true);
+    expect(containsProfanity("5h1t")).toBe(true);
+    expect(containsProfanity("Zoë")).toBe(false);
+  });
+
   it("flags whole-word and substring profanity", () => {
     expect(containsProfanity("you are an ass")).toBe(true);
     expect(containsProfanity("bullshit")).toBe(true);

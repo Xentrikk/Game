@@ -39,7 +39,11 @@ export default defineConfig({
       url: "http://localhost:5174",
       reuseExistingServer: false,
       cwd: "../..",
-      env: { CLIENT_PORT: "5174", API_PROXY_TARGET: "http://localhost:2568" },
+      env: {
+        CLIENT_PORT: "5174",
+        API_PROXY_TARGET: "http://localhost:2568",
+        VITE_GAME_URL: "http://localhost:2568",
+      },
     },
   ],
 });

@@ -2,7 +2,7 @@
 
 A cozy top-down pixel world where your friends live: a Game Boy–era–style alternative to texting and social media. The full product spec is in [`PROMPT.md`](PROMPT.md). The build goes phase by phase (Section 13 of the spec).
 
-**Status:** Phase 1 (Foundation) is done. See [`docs/phase-1.md`](docs/phase-1.md).
+**Status:** Phase 1 (accounts and characters) and Phase 2 (the world) are done. See [`docs/phase-1.md`](docs/phase-1.md) and [`docs/phase-2.md`](docs/phase-2.md).
 
 ## What's here
 
@@ -31,6 +31,19 @@ Local sign-in doesn't send real texts or emails:
 - **Phone:** use a test number from `supabase/config.toml` (`[auth.sms.test_otp]`), e.g. US `555 555 0100`. The code is always `123456`.
 - **Email:** any address works. Read the code or link in Mailpit at http://127.0.0.1:54324.
 
+## Playing
+
+Sign in, then choose **Enter the Town Square**. Open it in a second browser (or a private window) with another account to see each other.
+
+|                                | Keyboard                                  | Touch       |
+| ------------------------------ | ----------------------------------------- | ----------- |
+| Walk                           | Arrows / WASD (tap to turn, hold to walk) | D-pad       |
+| Talk / read                    | Z, Enter or Space                         | A           |
+| Run                            | Hold Shift, or X to toggle                | B toggles   |
+| Menu (Pocket mode, leave town) | Esc                                       | Menu button |
+
+In development, add `?hour=22` to the URL to preview the night tint.
+
 ## Tests
 
 ```sh
@@ -39,6 +52,8 @@ pnpm test:db      # integration tests against the local Supabase stack (RLS, tri
 pnpm test:e2e     # Playwright end-to-end on phone and desktop viewports (starts its own servers)
 pnpm lint && pnpm typecheck && pnpm format:check
 ```
+
+Load test (needs `pnpm dev` running): `pnpm loadtest` runs 50 bot players for 30 s. Use `BOTS=500 SECONDS=60 pnpm loadtest` for the 500-connection budget. It prints acknowledgment latency and PASS/FAIL.
 
 To use a preinstalled Chromium for Playwright, set `PW_CHROMIUM_PATH=/path/to/chrome`. Otherwise run `pnpm --filter @hearth/client exec playwright install chromium`. Set `SCREENSHOT_DIR=/some/dir` to save a screenshot of every onboarding screen during the e2e run.
 
@@ -60,4 +75,4 @@ The native projects aren't committed yet (see `docs/decisions.md`).
 
 ## Art
 
-Character sprites in `apps/client/public/sprites` are **generated placeholders** (`pnpm sprites`). Real art can replace them file for file. See [`docs/art-pipeline.md`](docs/art-pipeline.md).
+Character sprites (`apps/client/public/sprites`, `pnpm sprites`) and the Town Square tileset and map (`apps/client/public/tiles/town.png`, `packages/shared/maps/town.json`, `pnpm --filter @hearth/client town`) are **generated placeholders**. Real art can replace them file for file, and the map opens in [Tiled](https://www.mapeditor.org/). See [`docs/art-pipeline.md`](docs/art-pipeline.md). `pnpm --filter @hearth/client exec tsx scripts/preview-town.ts` renders the whole map to a PNG.

@@ -67,13 +67,18 @@ const LEET: Record<string, string> = {
   "|": "i",
 };
 
-/** Lowercases, removes accents and maps common look-alike characters to letters. */
+/**
+ * Lowercases, removes accents and maps look-alike characters to letters ("5h1t" → "shit").
+ * Words made only of digits are left alone, so numbers like "455" in "Bot 455" aren't read as words.
+ */
 export function normalizeForFilter(text: string): string {
   return text
     .toLowerCase()
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[0-9@$!|]/g, (c) => LEET[c] ?? c);
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[a-z0-9@$!|]+/g, (word) =>
+      /[a-z]/.test(word) ? word.replace(/[0-9@$!|]/g, (c) => LEET[c] ?? c) : word,
+    );
 }
 
 /** Collapses runs of the same letter ("fuuuck" → "fuck") so stretched spellings are caught. */

@@ -12,6 +12,9 @@
     "test:db": "vitest run test/db"
   },
   "dependencies": {
+    "@colyseus/core": "^0.18.17",
+    "@colyseus/schema": "^5.0.34",
+    "@colyseus/ws-transport": "^0.18.4",
     "@hearth/shared": "workspace:*",
     "@supabase/supabase-js": "^2.117.2",
     "cors": "^2.8.5",
@@ -22,6 +25,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@colyseus/sdk": "^0.18.4",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.2",

@@ -8,3 +8,5 @@ apps/client/public/sprites
 playwright-report
 test-results
 PROMPT.md
+packages/shared/maps
+apps/client/public/tiles

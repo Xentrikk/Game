@@ -47,3 +47,15 @@ pnpm --filter @hearth/client test                                               
 ```
 
 If you replace a generated sheet with hand-drawn art, remove that option from the generator (or stop running it). Otherwise CI's "sprites up to date" check will flag the difference.
+
+# Town Square tiles and map
+
+- **Tileset:** `apps/client/public/tiles/town.png`, 16×16 tiles, 8 columns. The whole area must use **at most 32 colors** (PROMPT.md Section 3). The generator refuses to write more, and the placeholder uses 31.
+- **Map:** `packages/shared/maps/town.json`, Tiled JSON with an embedded tileset. Layers:
+  - `ground`: floor tiles.
+  - `decor`: objects drawn under characters.
+  - `overhead`: tree canopies and lamp tops, drawn over characters.
+  - `objects`: point objects.
+- **Collision:** tiles with the boolean property `collides` block movement on the `ground` and `decor` layers. The `blocker` tile is invisible and collision-only.
+- **Objects:** `type` is `spawn`, `sign` (property `text`) or `npc` (properties `text`, `dir`, `seed`). In `text`, a blank line starts a new dialogue page.
+- The server and client both read this one file, so editing it in Tiled changes collision for everyone. Run `pnpm --filter @hearth/shared test` afterwards: the map tests check that every sign and NPC can be reached and nobody can walk off the map.

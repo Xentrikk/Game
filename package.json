@@ -20,7 +20,8 @@
     "test:db": "pnpm --filter @hearth/server test:db",
     "test:e2e": "pnpm --filter @hearth/client test:e2e",
     "sprites": "pnpm --filter @hearth/client sprites",
-    "prepare": "husky"
+    "prepare": "husky",
+    "loadtest": "pnpm --filter @hearth/client exec tsx e2e/loadtest.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

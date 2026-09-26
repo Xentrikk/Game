@@ -25,8 +25,11 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
-      - name: Sprite sheets are up to date
-        run: pnpm sprites && git diff --exit-code -- apps/client/public/sprites
+      - name: Generated art and map are up to date
+        run: |
+          pnpm sprites
+          pnpm --filter @hearth/client town
+          git diff --exit-code -- apps/client/public/sprites apps/client/public/tiles packages/shared/maps
       - run: pnpm build
         env:
           VITE_SUPABASE_URL: http://127.0.0.1:54321

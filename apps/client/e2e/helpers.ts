@@ -71,6 +71,64 @@ export async function lastEmailId(to: string): Promise<string | undefined> {
   return list.messages[0]?.ID;
 }
 
+const ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ??
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+/** API of the e2e server started by playwright.config.ts. */
+export const E2E_API = process.env.E2E_API ?? "http://localhost:2568";
+
+export interface TestPlayer {
+  email: string;
+  password: string;
+  handle: string;
+  token: string;
+}
+
+/**
+ * Creates a fully onboarded player (age, terms, handle, character) through the real API, so world
+ * tests don't have to click through sign-up. Email is under @e2e.hearth.test so cleanup finds it.
+ */
+export async function createPlayer(handle: string, appearance?: unknown): Promise<TestPlayer> {
+  const email = `${handle}@e2e.hearth.test`;
+  const password = "hearth-e2e-password";
+  const { error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (error) throw error;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+  const { data, error: signInError } = await anon.auth.signInWithPassword({ email, password });
+  if (signInError) throw signInError;
+  const token = data.session!.access_token;
+  const call = async (method: string, path: string, body: unknown) => {
+    const res = await fetch(`${E2E_API}${path}`, {
+      method,
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`${path}: ${res.status} ${await res.text()}`);
+  };
+  const { defaultAppearance, TOS_VERSION, PRIVACY_VERSION } = await import("@hearth/shared");
+  await call("POST", "/api/onboarding/age", { dob: "2000-01-01" });
+  await call("POST", "/api/onboarding/terms", { tosVersion: TOS_VERSION, privacyVersion: PRIVACY_VERSION });
+  await call("POST", "/api/onboarding/handle", { handle });
+  await call("PUT", "/api/character", {
+    displayName: handle,
+    pronouns: "",
+    bio: "",
+    appearance: appearance ?? defaultAppearance(),
+  });
+  return { email, password, handle, token };
+}
+
+/** Signs in through the UI with email + password. */
+export async function signInWithPassword(page: Page, player: TestPlayer) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Continue with email" }).click();
+  await page.getByRole("button", { name: "Use my password instead" }).click();
+  await page.getByLabel("Email", { exact: true }).fill(player.email);
+  await page.getByLabel("Password", { exact: true }).fill(player.password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByText(`@${player.handle}`)).toBeVisible();
+}
+
 /** The composited character sprite as a data URL, once it has finished drawing. */
 export async function spritePixels(page: Page, name: string | RegExp): Promise<string> {
   const canvas = page.getByRole("img", { name });

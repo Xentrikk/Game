@@ -169,7 +169,8 @@ textarea:focus-visible,
   cursor: default;
 }
 
-.btn.primary {
+.btn.primary,
+.menu-item.btn-primary {
   color: var(--accent);
 }
 
@@ -430,5 +431,181 @@ canvas.sprite {
 @media (prefers-reduced-motion: reduce) {
   .dialogue .next {
     animation: none;
+  }
+}
+
+/* ---------- World ---------- */
+
+.world {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #0a0c20;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.world-screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding-top: env(safe-area-inset-top);
+}
+
+.world-frame {
+  position: absolute;
+  line-height: 0;
+}
+
+.world-canvas canvas {
+  image-rendering: pixelated;
+  display: block;
+}
+
+.world-dialogue {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.7;
+  min-height: 0;
+}
+
+.dialogue .speaker {
+  color: #3448a8;
+  margin-bottom: 4px;
+}
+
+.world-menu {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: auto;
+  min-width: 220px;
+  line-height: 1.7;
+  padding: 8px;
+}
+
+.world-menu-button {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top));
+  right: 8px;
+  opacity: 0.85;
+}
+
+.world-banner {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 8px;
+  right: 96px;
+  background: var(--edge);
+  border: 2px solid var(--ink-dim);
+  padding: 8px;
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+.world-help {
+  text-align: center;
+  margin: 8px;
+}
+
+/* Game Boy–style touch controls */
+.pad {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px max(20px, env(safe-area-inset-bottom));
+  gap: 16px;
+}
+
+.dpad {
+  display: grid;
+  grid-template: repeat(3, 52px) / repeat(3, 52px);
+}
+
+.dpad button,
+.ab .round {
+  font: inherit;
+  color: var(--ink);
+  background: #2a2a36;
+  border: 3px solid var(--edge);
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dpad button:active,
+.ab .round:active {
+  background: #4a4a5a;
+}
+
+.dpad-up {
+  grid-area: 1 / 2;
+  border-radius: 6px 6px 0 0;
+}
+.dpad-left {
+  grid-area: 2 / 1;
+  border-radius: 6px 0 0 6px;
+}
+.dpad-right {
+  grid-area: 2 / 3;
+  border-radius: 0 6px 6px 0;
+}
+.dpad-down {
+  grid-area: 3 / 2;
+  border-radius: 0 0 6px 6px;
+}
+
+.ab {
+  display: flex;
+  gap: 16px;
+  transform: rotate(-20deg);
+}
+
+.ab .round {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #8a2250;
+  font-size: 16px;
+}
+
+.ab .round.b {
+  margin-top: 28px;
+}
+
+.ab .round.b[aria-pressed="true"] {
+  background: #c83a8a;
+  outline: 3px solid var(--accent);
+}
+
+/* Portrait: the text box goes under the screen instead of covering it. */
+@media (orientation: portrait) {
+  .world-dialogue {
+    top: calc(100% + 12px);
+    bottom: auto;
+    left: 0;
+    right: 0;
+    font-size: 12px;
+    min-height: 96px;
+  }
+}
+
+/* Phones held sideways: controls sit over the letterbox space on either side. */
+@media (orientation: landscape) {
+  .world.touch .pad {
+    position: absolute;
+    inset: auto 0 0 0;
+    pointer-events: none;
+  }
+  .world.touch .pad > * {
+    pointer-events: auto;
   }
 }

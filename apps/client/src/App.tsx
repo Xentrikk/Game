@@ -1,5 +1,5 @@
 import type { Me } from "@hearth/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { ApiFailure, api } from "./api";
 import { supabase } from "./supabase";
 import { Account } from "./screens/Account";
@@ -7,6 +7,9 @@ import { Creator } from "./screens/Creator";
 import { Home } from "./screens/Home";
 import { AgeGate, Blocked, PickHandle, Terms } from "./screens/Onboarding";
 import { SignIn } from "./screens/SignIn";
+
+// The world pulls in Phaser, so it loads only when someone enters it.
+const World = lazy(() => import("./screens/World"));
 
 type State =
   | { name: "loading" }
@@ -17,7 +20,7 @@ type State =
 
 export function App() {
   const [state, setState] = useState<State>({ name: "loading" });
-  const [overlay, setOverlay] = useState<"none" | "wardrobe" | "account">("none");
+  const [overlay, setOverlay] = useState<"none" | "town" | "wardrobe" | "account">("none");
   // Once blocked, stay on the blocked screen until the page is reloaded, even after signing out.
   const blocked = useRef(false);
 
@@ -103,5 +106,25 @@ export function App() {
     );
   }
   if (overlay === "account") return <Account me={me} onBack={() => setOverlay("none")} onChanged={next} />;
-  return <Home me={me} onWardrobe={() => setOverlay("wardrobe")} onAccount={() => setOverlay("account")} />;
+  if (overlay === "town") {
+    return (
+      <Suspense
+        fallback={
+          <main className="screen">
+            <p aria-live="polite">Loading the Town Square…</p>
+          </main>
+        }
+      >
+        <World onExit={() => setOverlay("none")} />
+      </Suspense>
+    );
+  }
+  return (
+    <Home
+      me={me}
+      onTown={() => setOverlay("town")}
+      onWardrobe={() => setOverlay("wardrobe")}
+      onAccount={() => setOverlay("account")}
+    />
+  );
 }

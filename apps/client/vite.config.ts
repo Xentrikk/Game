@@ -13,6 +13,7 @@ export default defineConfig({
     proxy: { "/api": api },
   },
   preview: { port, strictPort: true, proxy: { "/api": api } },
-  build: { target: "es2022", sourcemap: true },
+  // Phaser alone is ~1.2 MB minified (~370 kB gzipped); it's split into the lazily loaded World chunk.
+  build: { target: "es2022", sourcemap: true, chunkSizeWarningLimit: 1700 },
   test: { environment: "jsdom", include: ["src/**/*.test.{ts,tsx}"] },
 });

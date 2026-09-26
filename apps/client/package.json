@@ -10,12 +10,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "sprites": "tsx scripts/generate-sprites.ts"
+    "sprites": "tsx scripts/generate-sprites.ts",
+    "town": "tsx scripts/generate-town.ts"
   },
   "dependencies": {
+    "@colyseus/sdk": "^0.18.4",
     "@fontsource/press-start-2p": "^5.1.1",
     "@hearth/shared": "workspace:*",
     "@supabase/supabase-js": "^2.47.10",
+    "phaser": "3.90.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
