@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+*.log
+.DS_Store
+supabase/.temp/
+supabase/.branches/
+apps/client/playwright-report/
+apps/client/test-results/
+apps/mobile/android/
+apps/mobile/ios/

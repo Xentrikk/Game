@@ -1,0 +1,10 @@
+pnpm-lock.yaml
+**/dist
+supabase/.temp
+supabase/config.toml
+apps/mobile/android
+apps/mobile/ios
+apps/client/public/sprites
+playwright-report
+test-results
+PROMPT.md

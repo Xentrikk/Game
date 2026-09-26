@@ -1,0 +1,434 @@
+:root {
+  --ink: #f4f4f0;
+  --ink-dim: #b8bcd8;
+  --window-top: #3448a8;
+  --window-bottom: #141a5a;
+  --border: #f4f4f0;
+  --edge: #0a0c20;
+  --accent: #f4d04a;
+  --danger: #ff8a7a;
+  --ok: #8ae89a;
+  --field-bg: #0c1040;
+  --page: #1b1f3a;
+  --grass-a: #5a9a48;
+  --grass-b: #4e8a3e;
+  --font: "Press Start 2P", ui-monospace, monospace;
+  --hand: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8' shape-rendering='crispEdges'%3E%3Cpath fill='%230a0c20' d='M0 2h6V1h1v1h2v1h1v3H9v1H8v1H2V7H1V6H0z'/%3E%3Cpath fill='%23f4f4f0' d='M1 3h5v1h3v2H8v1H2V6H1z'/%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--page);
+  background-image:
+    linear-gradient(45deg, var(--grass-b) 25%, transparent 25%, transparent 75%, var(--grass-b) 75%),
+    linear-gradient(45deg, var(--grass-b) 25%, transparent 25%, transparent 75%, var(--grass-b) 75%);
+  background-color: var(--grass-a);
+  background-size: 32px 32px;
+  background-position:
+    0 0,
+    16px 16px;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 12px;
+  line-height: 1.7;
+  -webkit-font-smoothing: none;
+  image-rendering: pixelated;
+}
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+
+/* Final Fantasy–style window: gradient panel, light double border, dark outer edge. */
+.window {
+  width: 100%;
+  max-width: 440px;
+  background: linear-gradient(var(--window-top), var(--window-bottom));
+  border: 3px solid var(--border);
+  outline: 3px solid var(--edge);
+  box-shadow:
+    inset 0 0 0 2px var(--edge),
+    6px 6px 0 rgba(0, 0, 0, 0.35);
+  border-radius: 6px;
+  padding: 20px 18px;
+}
+
+.window.wide {
+  max-width: 760px;
+}
+
+.window h1,
+.window h2 {
+  font-size: 14px;
+  font-weight: normal;
+  margin: 0 0 16px;
+  color: var(--accent);
+  text-shadow: 2px 2px 0 var(--edge);
+}
+
+.window h1 {
+  font-size: 20px;
+}
+
+.window p {
+  margin: 0 0 14px;
+}
+
+.hint {
+  color: var(--ink-dim);
+  font-size: 10px;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 10px;
+  min-height: 1.7em;
+  margin: 6px 0 0;
+}
+
+.success {
+  color: var(--ok);
+  font-size: 10px;
+}
+
+/* Menu list with the pointing-hand cursor on the active item. */
+.menu {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.menu-item,
+.btn {
+  font: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  text-align: left;
+  padding: 8px 8px 8px 30px;
+  width: 100%;
+  cursor: pointer;
+  position: relative;
+  min-height: 44px;
+  text-shadow: 2px 2px 0 var(--edge);
+}
+
+.menu-item::before,
+.btn::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  width: 20px;
+  height: 16px;
+  margin-top: -8px;
+  background: var(--hand) no-repeat center / contain;
+  opacity: 0;
+}
+
+.menu-item:hover::before,
+.menu-item:focus-visible::before,
+.btn:hover::before,
+.btn:focus-visible::before,
+.menu-item[aria-current="true"]::before {
+  opacity: 1;
+}
+
+.menu-item:focus-visible,
+.btn:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.swatch:focus-visible,
+.chip:focus-visible,
+.tab:focus-visible {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+.menu-item:disabled,
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.btn.primary {
+  color: var(--accent);
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.actions .btn {
+  width: auto;
+  flex: 1 1 auto;
+}
+
+label.field {
+  display: block;
+  margin: 0 0 12px;
+}
+
+label.field > span {
+  display: block;
+  font-size: 10px;
+  color: var(--ink-dim);
+  margin-bottom: 6px;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--field-bg);
+  border: 2px solid var(--ink-dim);
+  border-radius: 2px;
+  padding: 10px;
+  width: 100%;
+  min-height: 44px;
+}
+
+textarea {
+  resize: none;
+}
+
+input.code {
+  font-size: 20px;
+  letter-spacing: 8px;
+  text-align: center;
+}
+
+.prefix-input {
+  display: flex;
+  align-items: stretch;
+}
+
+.prefix-input > span {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  background: var(--edge);
+  border: 2px solid var(--ink-dim);
+  border-right: 0;
+}
+
+.dob {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1.2fr;
+  gap: 8px;
+}
+
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 10px;
+  margin: 8px 0 12px;
+  cursor: pointer;
+}
+
+.check input {
+  width: 22px;
+  min-height: 22px;
+  height: 22px;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+a {
+  color: var(--accent);
+}
+
+/* Dialogue box: bottom-screen text box with typewriter text and a blinking ▼. */
+.dialogue {
+  background: var(--ink);
+  color: var(--edge);
+  border: 3px solid var(--edge);
+  box-shadow:
+    inset 0 0 0 2px var(--ink),
+    inset 0 0 0 4px var(--edge);
+  padding: 14px 16px 22px;
+  margin: 0 0 16px;
+  position: relative;
+  min-height: 84px;
+  cursor: pointer;
+  text-shadow: none;
+}
+
+.dialogue .next {
+  position: absolute;
+  right: 12px;
+  bottom: 6px;
+  animation: blink 0.8s steps(2) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Character creator */
+.creator {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 720px) {
+  .creator {
+    grid-template-columns: 240px 1fr;
+  }
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.stage {
+  background:
+    linear-gradient(45deg, var(--grass-b) 25%, transparent 25%, transparent 75%, var(--grass-b) 75%),
+    linear-gradient(45deg, var(--grass-b) 25%, transparent 25%, transparent 75%, var(--grass-b) 75%);
+  background-color: var(--grass-a);
+  background-size: 24px 24px;
+  background-position:
+    0 0,
+    12px 12px;
+  border: 3px solid var(--edge);
+  padding: 12px 24px;
+  display: flex;
+  justify-content: center;
+}
+
+canvas.sprite {
+  image-rendering: pixelated;
+  display: block;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.tab {
+  font: inherit;
+  font-size: 10px;
+  color: var(--ink-dim);
+  background: var(--field-bg);
+  border: 2px solid var(--ink-dim);
+  padding: 8px 10px;
+  min-height: 36px;
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  color: var(--edge);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.chip {
+  font: inherit;
+  font-size: 10px;
+  color: var(--ink);
+  background: var(--field-bg);
+  border: 2px solid var(--ink-dim);
+  padding: 8px 10px;
+  min-height: 36px;
+  cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.swatch {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--edge);
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch[aria-pressed="true"] {
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.section-label {
+  font-size: 10px;
+  color: var(--ink-dim);
+  margin: 4px 0 6px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--edge);
+  border: 2px solid var(--ink-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialogue .next {
+    animation: none;
+  }
+}
