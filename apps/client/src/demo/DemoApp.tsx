@@ -32,7 +32,7 @@ const TOWN_NOTICE = {
     "Welcome to the Town Square! This preview runs on your device only.",
     "The villagers walking around are bots standing in for your friends. In the real game, the people here are your friends, live.",
     "Walk with the arrow keys or D-pad. Hold Shift or tap B to run. Press Z, Enter or A to read signs and talk to Mayor Pip, Fern and Robin.",
-    "Try the Menu for Pocket mode.",
+    "Press T or the Say button to talk to people nearby, and try Emote. The Menu has Pocket mode.",
   ],
 };
 

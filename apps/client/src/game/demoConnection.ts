@@ -7,6 +7,7 @@ import {
   randomAppearance,
   tryStep,
   type Appearance,
+  type Emote,
   type Mover,
   type TiledMap,
 } from "@hearth/shared";
@@ -17,6 +18,15 @@ import type { NetPlayer, PlayerHandlers, WorldConnection } from "./connection";
 const LATENCY_MS = 40;
 const SELF = "you";
 const VILLAGERS = ["Juniper", "Theo", "Marisol", "Kenji", "Ada", "Rook", "Wren"];
+/** Things the demo villagers say now and then. */
+const CHATTER = [
+  "Nice day for a walk!",
+  "Has anyone seen the post office open yet?",
+  "I love this fountain.",
+  "Meet you by the café later?",
+  "The Wilds sound spooky...",
+  "hi!!",
+];
 /** Villagers stroll around the plaza and the paths around it. */
 const AREA = { x0: 12, y0: 9, x1: 27, y1: 20 };
 
@@ -46,6 +56,21 @@ export function demoConnection(me: {
   const handlers: PlayerHandlers[] = [];
   const timers: ReturnType<typeof setInterval>[] = [];
   const emit = (id: string) => handlers.forEach((h) => h.onChange(id, players.get(id)!));
+  const sayListeners: ((e: { sessionId: string; text: string }) => void)[] = [];
+  const emoteListeners: ((e: { sessionId: string; emote: Emote }) => void)[] = [];
+  // Now and then a villager says something or waves.
+  timers.push(
+    setInterval(() => {
+      const i = Math.floor(Math.random() * VILLAGERS.length);
+      if (Math.random() < 0.5) {
+        const text = CHATTER[Math.floor(Math.random() * CHATTER.length)]!;
+        sayListeners.forEach((l) => l({ sessionId: `villager-${i}`, text }));
+      } else {
+        const emote = (["wave", "heart", "music", "laugh"] as Emote[])[Math.floor(Math.random() * 4)]!;
+        emoteListeners.forEach((l) => l({ sessionId: `villager-${i}`, emote }));
+      }
+    }, 6000),
+  );
 
   const add = (id: string, p: NetPlayer) => {
     players.set(id, p);
@@ -140,5 +165,12 @@ export function demoConnection(me: {
     onLeave: () => undefined,
     leave: async () => timers.forEach((t) => clearInterval(t)),
     simulateDrop: () => undefined,
+    roomId: "demo",
+    say: (text) => setTimeout(() => sayListeners.forEach((l) => l({ sessionId: SELF, text })), LATENCY_MS),
+    emote: (emote) =>
+      setTimeout(() => emoteListeners.forEach((l) => l({ sessionId: SELF, emote })), LATENCY_MS),
+    onSay: (cb) => void sayListeners.push(cb),
+    onEmote: (cb) => void emoteListeners.push(cb),
+    reportSay: async () => undefined,
   };
 }

@@ -1,4 +1,4 @@
-import type { FaceMessage, MoveMessage } from "@hearth/shared";
+import type { Emote, FaceMessage, MoveMessage, ReportReason } from "@hearth/shared";
 
 /** One player as the world scene sees them (mirrors PlayerState in the room schema). */
 export interface NetPlayer {
@@ -36,4 +36,13 @@ export interface WorldConnection {
   leave(consented?: boolean): Promise<unknown>;
   /** Testing only: cut the network connection without leaving. */
   simulateDrop(): void;
+  /** Speak to players nearby (they see a bubble over your head). */
+  say(text: string): void;
+  emote(emote: Emote): void;
+  onSay(cb: (e: { sessionId: string; text: string }) => void): void;
+  onEmote(cb: (e: { sessionId: string; emote: Emote }) => void): void;
+  /** Reports what someone said nearby; the server attaches the recent conversation. */
+  reportSay(sessionId: string, reason: ReportReason, note: string): Promise<void>;
+  /** Which Town Square instance this is (for "Go to friend"). */
+  readonly roomId: string;
 }

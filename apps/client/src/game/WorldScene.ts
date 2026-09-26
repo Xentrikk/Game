@@ -39,6 +39,17 @@ export interface WorldUi {
   isDialogueOpen(): boolean;
   openDialogue(pages: string[], speaker?: string): void;
   advanceDialogue(): void;
+  /** Someone tapped/clicked another player. */
+  onPlayerTap?(sessionId: string): void;
+}
+
+/** True while the player is typing in a text box, so keys go to the box and not the game. */
+function isTyping(): boolean {
+  const el = document.activeElement as HTMLElement | null;
+  return (
+    !!el &&
+    (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)
+  );
 }
 
 export interface WorldSceneData {
@@ -154,6 +165,23 @@ export class WorldScene extends Phaser.Scene {
     this.updateTint();
   }
 
+  /**
+   * Where a player's head is on screen, in CSS pixels from the canvas's top-left corner
+   * (for speech bubbles and emotes drawn in HTML over the game).
+   */
+  screenPoint(sessionId: string): { x: number; y: number } | null {
+    const a =
+      sessionId === this.conn.sessionId
+        ? this.self?.avatar
+        : (this.others.get(sessionId) ?? this.npcs.get(sessionId));
+    if (!a || !a.sprite.visible) return null;
+    const cam = this.cameras.main;
+    const zoom = this.game.scale.zoom;
+    // Anchor above the name tag (7px tall, 1px gap) so bubbles never cover who's talking.
+    const top = a.sprite.y - (a.tag ? a.tag.height + 2 : 0);
+    return { x: (a.sprite.x + TILE / 2 - cam.worldView.x) * zoom, y: (top - cam.worldView.y) * zoom };
+  }
+
   snapshot() {
     const s = this.self;
     return {
@@ -206,6 +234,7 @@ export class WorldScene extends Phaser.Scene {
       const isAction = what === "a" || what === "b" || what === "shift";
       this.keys.push({ key, dir: isAction ? undefined : what, action: isAction ? what : undefined });
       key.on("down", () => {
+        if (isTyping()) return;
         if (!isAction) this.ui.input.press(what);
         else if (what === "a") this.ui.input.pressA();
         else if (what === "b") this.ui.input.runToggle = !this.ui.input.runToggle;
@@ -275,6 +304,7 @@ export class WorldScene extends Phaser.Scene {
   private async addOther(id: string, p: NetPlayer) {
     const avatar = this.makeAvatar({ x: p.x, y: p.y }, dirFromIndex(p.dir));
     this.others.set(id, avatar);
+    avatar.sprite.setInteractive({ useHandCursor: true }).on("pointerup", () => this.ui.onPlayerTap?.(id));
     await this.dress(avatar, JSON.parse(p.appearance), p.name, p.handle);
   }
 

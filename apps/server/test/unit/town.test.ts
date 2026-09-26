@@ -12,12 +12,34 @@ import {
 } from "@hearth/shared";
 import town from "@hearth/shared/maps/town.json" with { type: "json" };
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { TownRoom } from "../../src/rooms/TownRoom";
+import { BLOCKS_CHANNEL, LocalBus } from "../../src/bus";
+import { TownRoom, type WorldSocial } from "../../src/rooms/TownRoom";
 import { FakeRepo } from "./fakes";
 
 const PORT = 2690;
 const map = parseMap(town as TiledMap);
 const repo = new FakeRepo();
+const bus = new LocalBus();
+const blocks: [string, string][] = [];
+const mutes: [string, string][] = [];
+const reports: Parameters<WorldSocial["createReport"]>[0][] = [];
+const locations = new Map<string, string | null>();
+const social: WorldSocial = {
+  async blockedEitherWay(id) {
+    return new Set(blocks.flatMap(([a, b]) => (a === id ? [b] : b === id ? [a] : [])));
+  },
+  async muted(id) {
+    return new Set(mutes.filter(([a]) => a === id).map(([, b]) => b));
+  },
+  async createReport(r) {
+    reports.push(r);
+    return "report-id";
+  },
+  async setLocation(id, loc) {
+    locations.set(id, loc?.roomId ?? null);
+  },
+  bus,
+};
 let server: Server;
 
 function addUser(id: string, withCharacter = true) {
@@ -63,6 +85,7 @@ beforeAll(async () => {
       return jwt.slice(6);
     },
     random: () => 0, // always the first spawn point
+    social,
   };
   server = new Server({
     transport: new WebSocketTransport(),
@@ -230,4 +253,126 @@ describe("Town Square room", () => {
     expect(new Set(rooms.map((r) => r.roomId)).size).toBeGreaterThanOrEqual(2);
     await Promise.all(rooms.map((r) => r.leave()));
   }, 30000);
+});
+
+describe("talking in the world", () => {
+  /** Collects messages of one type that a client receives. */
+  function inbox<T>(room: TownRoomClient, type: string): T[] {
+    const got: T[] = [];
+    room.onMessage(type, (m: T) => got.push(m));
+    return got;
+  }
+
+  async function walk(room: TownRoomClient, dir: "down" | "up" | "left" | "right", steps: number) {
+    let seq = me(room).seq;
+    for (let i = 0; i < steps; i++) {
+      room.send("move", { dir, run: false, seq: ++seq });
+      await sleep(260);
+    }
+    await until(() => me(room).seq === seq);
+  }
+
+  it("Say reaches players within 6 tiles, masks profanity and is rate-limited", async () => {
+    addUser("t-near");
+    addUser("t-far");
+    addUser("t-talk");
+    const talker = await join("t-talk");
+    const near = await join("t-near");
+    const far = await join("t-far");
+    await walk(far, "down", 7); // (18,16) → (18,23): 7 tiles away
+    const nearHeard = inbox<{ sessionId: string; text: string }>(near, "say");
+    const farHeard = inbox<{ sessionId: string; text: string }>(far, "say");
+    const selfHeard = inbox<{ text: string }>(talker, "say");
+    talker.send("say", { text: "hello, this shit is fun" });
+    await until(() => nearHeard.length === 1);
+    expect(nearHeard[0]).toEqual({ sessionId: talker.sessionId, text: "hello, this **** is fun" });
+    expect(selfHeard).toHaveLength(1);
+    await sleep(150);
+    expect(farHeard).toEqual([]);
+
+    for (let i = 0; i < 6; i++) talker.send("say", { text: `line ${i}` });
+    await sleep(300);
+    expect(nearHeard).toHaveLength(5); // 1 + 4 more; the 6th and 7th were over the limit
+    await Promise.all([talker, near, far].map((r) => r.leave()));
+  });
+
+  it("emotes reach everyone who can see you, except people who muted you", async () => {
+    addUser("e-a");
+    addUser("e-b");
+    addUser("e-c");
+    const a = await join("e-a");
+    const b = await join("e-b");
+    const c = await join("e-c");
+    mutes.push(["e-c", "e-a"]);
+    bus.publish(BLOCKS_CHANNEL, { muter: "e-c", muted: "e-a" });
+    const bSaw = inbox<{ emote: string }>(b, "emote");
+    const cSaw = inbox<{ emote: string }>(c, "emote");
+    a.send("emote", { emote: "wave" });
+    a.send("emote", { emote: "heart" }); // within a second: dropped
+    a.send("emote", { emote: "dance" }); // not an emote
+    await until(() => bSaw.length === 1);
+    await sleep(150);
+    expect(bSaw).toEqual([{ sessionId: a.sessionId, emote: "wave" }]);
+    expect(cSaw).toEqual([]);
+    await Promise.all([a, b, c].map((r) => r.leave()));
+  });
+
+  it("blocked players vanish for each other, live, and come back when unblocked", async () => {
+    addUser("b-a");
+    addUser("b-b");
+    const a = await join("b-a");
+    const b = await join("b-b");
+    await until(() => a.state.players.get(b.sessionId) && b.state.players.get(a.sessionId));
+
+    blocks.push(["b-a", "b-b"]);
+    bus.publish(BLOCKS_CHANNEL, { blocker: "b-a", blocked: "b-b" });
+    await until(() => !a.state.players.get(b.sessionId) && !b.state.players.get(a.sessionId));
+    // Say and emotes don't cross a block either.
+    const bHeard = inbox<unknown>(b, "say");
+    a.send("say", { text: "can you hear me?" });
+    await sleep(200);
+    expect(bHeard).toEqual([]);
+
+    // Someone who joins while blocked never appears.
+    addUser("b-c");
+    blocks.push(["b-c", "b-a"]);
+    const c = await join("b-c");
+    await sleep(150);
+    expect(c.state.players.get(a.sessionId)).toBeUndefined();
+    expect(a.state.players.get(c.sessionId)).toBeUndefined();
+    expect(c.state.players.get(b.sessionId)).toBeTruthy();
+
+    blocks.splice(
+      blocks.findIndex(([x, y]) => x === "b-a" && y === "b-b"),
+      1,
+    );
+    bus.publish(BLOCKS_CHANNEL, { unblocker: "b-a", unblocked: "b-b" });
+    await until(() => a.state.players.get(b.sessionId) && b.state.players.get(a.sessionId));
+    await Promise.all([a, b, c].map((r) => r.leave()));
+  });
+
+  it("reports a Say line with the recent conversation attached", async () => {
+    addUser("r-a");
+    addUser("r-b");
+    const a = await join("r-a");
+    const b = await join("r-b");
+    b.send("say", { text: "you're the worst" });
+    await sleep(100);
+    const done = new Promise((r) => a.onMessage("reported", r));
+    a.send("report_say", { sessionId: b.sessionId, reason: "harassment" });
+    await done;
+    const report = reports.at(-1)!;
+    expect(report).toMatchObject({ reporter: "r-a", targetUser: "r-b", kind: "say", reason: "harassment" });
+    const lines = (report.context as { lines: { handle: string; text: string }[] }).lines;
+    expect(lines.at(-1)).toMatchObject({ handle: "r_b", text: "you're the worst" });
+    await Promise.all([a, b].map((r) => r.leave()));
+  });
+
+  it("records where you are for your friends, and clears it when you leave", async () => {
+    addUser("l-a");
+    const a = await join("l-a");
+    await until(() => locations.get("l-a") === a.roomId);
+    await a.leave();
+    await until(() => locations.get("l-a") === null);
+  });
 });

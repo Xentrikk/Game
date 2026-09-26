@@ -6,3 +6,4 @@ export * from "./handle";
 export * from "./phone";
 export * from "./profile";
 export * from "./world";
+export * from "./social";

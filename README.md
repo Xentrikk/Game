@@ -2,7 +2,7 @@
 
 A cozy top-down pixel world where your friends live: a Game Boy–era–style alternative to texting and social media. The full product spec is in [`PROMPT.md`](PROMPT.md). The build goes phase by phase (Section 13 of the spec).
 
-**Status:** Phase 1 (accounts and characters) and Phase 2 (the world) are done. See [`docs/phase-1.md`](docs/phase-1.md) and [`docs/phase-2.md`](docs/phase-2.md).
+**Status:** Phases 1–3 are done: accounts and characters, the world, and friends and talking. See [`docs/phase-1.md`](docs/phase-1.md), [`docs/phase-2.md`](docs/phase-2.md) and [`docs/phase-3.md`](docs/phase-3.md).
 
 ## What's here
 
@@ -43,6 +43,10 @@ Sign in, then choose **Enter the Town Square**. Open it in a second browser (or 
 | Menu (Pocket mode, leave town) | Esc                                       | Menu button |
 
 In development, add `?hour=22` to the URL to preview the night tint.
+
+In the world, press **T** (or Say) to talk to people within 6 tiles, **Emote** for the emote wheel, and click or tap someone for their card. **Chats** and **Friends** open over the world without pausing it. On the home screen, Friends has your friend code, QR code and invite link (`/add/CODE`).
+
+To try push notifications locally, generate keys with `npx web-push generate-vapid-keys`, put them in `.env` (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`), then choose Settings → Turn on notifications.
 
 ## Offline preview
 

@@ -22,5 +22,9 @@ export const PlayerState = schema(
 );
 export type PlayerState = SchemaType<typeof PlayerState>;
 
-export const TownState = schema({ players: t.map(PlayerState) }, "TownState");
+/**
+ * Players are filtered per client (Colyseus StateView): you only receive players you're allowed to
+ * see, so people who blocked each other don't exist for each other.
+ */
+export const TownState = schema({ players: t.map(PlayerState).view() }, "TownState");
 export type TownState = SchemaType<typeof TownState>;

@@ -37,3 +37,23 @@ Choices made where PROMPT.md was ambiguous or silent. Per Section 14, when in do
 28. **The Pocket mode setting is stored per device** (localStorage), as a viewer preference.
 29. **Local Supabase allows 5,000 sign-ins per 5 minutes** so `pnpm loadtest` can sign in hundreds of bots. Production keeps Supabase's defaults.
 30. **The frame-rate test is skipped in CI unless `PERF=1`**, because shared CI runners' timing varies too much for a 60 fps assertion. It runs as part of the normal local e2e suite.
+
+## Phase 3
+
+31. **Live updates use server-sent events** (`GET /api/events`, read with `fetch` so the Authorization header works) over a pub/sub bus: in memory for one server, Redis for several. Chat works anywhere in the app, not only in the world. The spec's "game server pushes new message events" is met by the same server process.
+32. **Social and chat queries use a direct Postgres connection** (`DATABASE_URL`, the `postgres` driver) for transactions and joins. Multi-step changes (accept a request, block someone, send a message) are SQL functions, so each is one transaction.
+33. **Messages are ordered by a global sequence number**, which is also the paging and catch-up cursor. Clients generate message IDs, so a retried send can never create a duplicate.
+34. **Deleted messages keep their text, hidden from everyone,** so a report can show moderators what was said. Before launch, add a job that permanently removes deleted text after 30 days unless a report holds it.
+35. **Read receipts are mutual:** if either person turns them off, neither sees the other's (common practice; avoids one-sided tracking). Delivered receipts always show.
+36. **DMs and groups are friends-only for everyone,** not just for minors. The spec's default is friends-only DMs, and there's no setting to open them up yet, which also satisfies the stricter rules for under-18s.
+37. **Blocking is silent:** requests from a blocked person look sent but do nothing; they're never told. The blocker's friend list updates immediately. The blocked person notices the friendship is gone the next time their list loads, which can't be avoided.
+38. **Muting** hides that person's Say bubbles and emotes in the world and their messages in group chats. It doesn't hide DMs (unfriend or block for that). Each chat can also be muted separately for notifications.
+39. **World visibility uses Colyseus StateView:** each client only receives the players it may see, and blocks take effect immediately in every instance through the bus.
+40. **Say is masked, not rejected:** profane words become asterisks so the rest of the line still gets through. Direct messages between friends aren't filtered, since there's no opt-in setting yet.
+41. **Speech bubbles and emotes are HTML over the canvas,** not drawn in Phaser. They can show any language and emoji (the 3×5 pixel font can't), and screen readers can reach them. They're positioned every frame from the scene.
+42. **Tapping a player** opens their card; Say reports from the world go through the room so they include the recent lines.
+43. **"Go to friend" and entering town** both try the friend's instance first (`joinById`) and fall back to any instance with room.
+44. **Presence is refcounted per open event stream** and stored in the shared store with a 2-minute TTL refreshed by 30-second heartbeats, so crashed servers don't leave people "online" forever.
+45. **Contact discovery (opt-in phone and email matching) is deferred to Phase 6.** Browsers have no general contacts API; it needs the native apps (Capacitor). The Phase 3 list in the spec doesn't include it.
+46. **Screenshot postcards in chat are deferred to Phase 4,** alongside letters. The spec lists postcards with images; Phase 3 chat is text only, and links show as plain text.
+47. **The offline preview shares screens with the real app,** so shared screens import social code only through `social/contexts.ts`, which has no server imports.

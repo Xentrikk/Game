@@ -2,12 +2,29 @@ import type { Me } from "@hearth/shared";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { ApiFailure, api } from "./api";
 import { joinTown } from "./game/net";
+import { SocialProvider } from "./social/context";
+import { registerServiceWorker } from "./social/push";
+import { SocialUiProvider, useSocialUi } from "./social/SocialUi";
 import { supabase } from "./supabase";
 import { Account } from "./screens/Account";
 import { Creator } from "./screens/Creator";
 import { Home } from "./screens/Home";
 import { AgeGate, Blocked, PickHandle, Terms } from "./screens/Onboarding";
 import { SignIn } from "./screens/SignIn";
+
+// Invite links (/add/CODE) are remembered through sign-in, then opened once the player is ready.
+const INVITE_KEY = "hearth.invite";
+{
+  const m = /^\/add\/([A-Za-z0-9-]{8,9})$/.exec(location.pathname);
+  if (m) {
+    try {
+      sessionStorage.setItem(INVITE_KEY, m[1]!);
+    } catch {
+      /* private mode: the invite just won't survive sign-in */
+    }
+    history.replaceState(null, "", "/");
+  }
+}
 
 // The world pulls in Phaser, so it loads only when someone enters it.
 const World = lazy(() => import("./screens/World"));
@@ -94,10 +111,61 @@ export function App() {
   if (!onboarding.hasCharacter)
     return <Creator handle={onboarding.handle} onDone={next} onSave={api.saveCharacter} />;
 
+  return (
+    <SocialProvider userId={me.userId}>
+      <SocialUiProvider>
+        <LinkHandler />
+        <SignedIn me={me} overlay={overlay} setOverlay={setOverlay} next={next} />
+      </SocialUiProvider>
+    </SocialProvider>
+  );
+}
+
+/** Opens what a notification or invite link points at: ?chat=ID, ?friends, or a remembered /add/CODE. */
+function LinkHandler() {
+  const ui = useSocialUi();
+  useEffect(() => {
+    void registerServiceWorker();
+    const params = new URLSearchParams(location.search);
+    const chat = params.get("chat");
+    if (chat) ui.openChat(chat);
+    else if (params.has("friends")) ui.openFriends("requests");
+    if (chat || params.has("friends")) history.replaceState(null, "", "/");
+    let code: string | null = null;
+    try {
+      code = sessionStorage.getItem(INVITE_KEY);
+      sessionStorage.removeItem(INVITE_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (code) {
+      void api
+        .lookupCode(code)
+        .then(({ profile }) => ui.openProfile(profile.handle))
+        .catch(() => ui.openFriends("add"));
+    }
+    // Run once when the signed-in app first appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+
+function SignedIn({
+  me,
+  overlay,
+  setOverlay,
+  next,
+}: {
+  me: Me;
+  overlay: "none" | "town" | "wardrobe" | "account";
+  setOverlay: (o: "none" | "town" | "wardrobe" | "account") => void;
+  next: () => void;
+}) {
+  const onboarding = me.onboarding;
   if (overlay === "wardrobe") {
     return (
       <Creator
-        handle={onboarding.handle}
+        handle={onboarding.handle!}
         initial={{ appearance: me.appearance!, ...me.profile! }}
         onSave={api.saveCharacter}
         onDone={() => {

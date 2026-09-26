@@ -18,12 +18,15 @@ import {
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import helmet from "helmet";
-import type { ZodType } from "zod";
 import { currentUser, requireUser, type TokenVerifier } from "./auth";
 import { HttpError, NOT_ELIGIBLE_MESSAGE } from "./errors";
+import { parse } from "./http";
 import type { AuthApi } from "./gotrue";
 import type { OtpService } from "./otp";
+import { chatRoutes } from "./chat/routes";
+import { eventRoutes } from "./events";
 import { HandleTakenError, type Repo } from "./repo";
+import { socialRoutes, type SocialDeps } from "./social/routes";
 
 export interface AppDeps {
   otp: OtpService;
@@ -34,15 +37,8 @@ export interface AppDeps {
   trustProxy: number;
   /** Injectable clock for age-gate tests. */
   today?: () => string;
-}
-
-function parse<T>(schema: ZodType<T>, body: unknown): T {
-  const result = schema.safeParse(body);
-  if (!result.success) {
-    const message = result.error.issues[0]?.message ?? "Invalid request.";
-    throw new HttpError(400, "invalid_request", message);
-  }
-  return result.data;
+  /** Friends, chat and live events (Phase 3). Optional so account-only tests can run without a database. */
+  social?: Omit<SocialDeps, "verifyToken">;
 }
 
 export function createApp(deps: AppDeps) {
@@ -196,6 +192,13 @@ export function createApp(deps: AppDeps) {
     );
     res.json({ ok: true });
   });
+
+  if (deps.social) {
+    const social = { ...deps.social, verifyToken: deps.verifyToken };
+    app.use(socialRoutes(social));
+    app.use(chatRoutes(social));
+    app.use(eventRoutes(social));
+  }
 
   app.use("/api", (_req, _res, next) => next(new HttpError(404, "not_found", "Not found.")));
 

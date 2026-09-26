@@ -9,7 +9,7 @@ async function canvasPixels(page: Page) {
   const png = PNG.sync.read(
     await page
       .locator(".world-canvas canvas")
-      .screenshot({ style: ".world-menu-button, .world-banner { visibility: hidden !important; }" }),
+      .screenshot({ style: ".world-toolbar, .world-banner { visibility: hidden !important; }" }),
   );
   const colors = new Map<string, number>();
   let luminance = 0;

@@ -9,6 +9,12 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  /** Direct Postgres connection for the social and chat features (bypasses RLS, like the service role). */
+  DATABASE_URL: z.string().url(),
+  /** Web Push (VAPID) keys. Generate with `npx web-push generate-vapid-keys`. Push is off without them. */
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default("mailto:support@hearth.example"),
   /** Leave empty to use an in-memory store (single instance only, e.g. tests). */
   REDIS_URL: z.string().optional(),
   CAPTCHA_PROVIDER: z.enum(["none", "turnstile", "hcaptcha"]).default("none"),
