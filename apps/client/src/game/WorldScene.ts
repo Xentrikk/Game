@@ -1,4 +1,3 @@
-import { getStateCallbacks } from "@colyseus/sdk";
 import {
   DIR_VECTORS,
   TILE,
@@ -13,17 +12,17 @@ import {
   tryStep,
   type Dir,
   type Npc,
-  type PlayerState,
   type TiledMap,
   type WorldMap,
 } from "@hearth/shared";
 import town from "@hearth/shared/maps/town.json";
+import { assetUrl } from "../assets";
 import Phaser from "phaser";
 import { FRAME_H, WALK_CYCLE } from "../sprites/format";
 import { avatarTexture, frameName, nameTagTexture, npcAppearance } from "./avatars";
 import { tintForHour } from "./daynight";
 import type { InputState } from "./input";
-import type { TownRoom } from "./net";
+import type { NetPlayer, WorldConnection } from "./connection";
 import { ScreenPipeline, hexToUnitRgb } from "./pocket";
 
 /** From a standstill, a tap shorter than this only turns the player. */
@@ -43,7 +42,7 @@ export interface WorldUi {
 }
 
 export interface WorldSceneData {
-  room: TownRoom;
+  conn: WorldConnection;
   ui: WorldUi;
   pocket: boolean;
   /** Dev/testing override for the day/night tint. */
@@ -80,7 +79,7 @@ const pixelPos = (tile: { x: number; y: number }) => ({
 });
 
 export class WorldScene extends Phaser.Scene {
-  private room!: TownRoom;
+  private conn!: WorldConnection;
   private ui!: WorldUi;
   private map!: WorldMap;
   private self?: LocalPlayer;
@@ -99,7 +98,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   init(data: WorldSceneData) {
-    this.room = data.room;
+    this.conn = data.conn;
     this.ui = data.ui;
     this.pocket = data.pocket;
     this.hourOverride = data.hourOverride;
@@ -107,7 +106,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image("town-tiles", `${import.meta.env.BASE_URL}tiles/town.png`);
+    this.load.image("town-tiles", assetUrl("tiles/town.png"));
     this.cache.tilemap.add("town", { format: Phaser.Tilemaps.Formats.TILED_JSON, data: town });
   }
 
@@ -168,18 +167,13 @@ export class WorldScene extends Phaser.Scene {
         : null,
       others: [...this.others.entries()].map(([id, a]) => ({
         id,
-        handle: this.room.state.players.get(id)?.handle,
+        handle: this.conn.players().find(([pid]) => pid === id)?.[1].handle,
         ...a.tile,
         dir: a.dir,
         px: { x: a.sprite.x, y: a.sprite.y },
       })),
       /** Raw positions from the room state, as opposed to what's drawn. */
-      server: [...this.room.state.players.entries()].map(([id, p]) => ({
-        id,
-        handle: p.handle,
-        x: p.x,
-        y: p.y,
-      })),
+      server: this.conn.players().map(([id, p]) => ({ id, handle: p.handle, x: p.x, y: p.y })),
       pocket: !!this.screenFx?.pocket,
       tint: this.tintColor,
       fps: this.game.loop.actualFps,
@@ -226,18 +220,15 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private bindRoom() {
-    const $ = getStateCallbacks(this.room);
-    const players = $(this.room.state).players;
-    players.onAdd((p: PlayerState, id: string) => {
-      if (id === this.room.sessionId) void this.addSelf(p);
-      else void this.addOther(id, p);
-      $(p).onChange(() => (id === this.room.sessionId ? this.reconcile(p) : this.moveOther(id, p)));
-    });
-    players.onRemove((_p: PlayerState, id: string) => {
-      const a = this.others.get(id);
-      a?.sprite.destroy();
-      a?.tag?.destroy();
-      this.others.delete(id);
+    this.conn.subscribe({
+      onAdd: (id, p) => (id === this.conn.sessionId ? void this.addSelf(p) : void this.addOther(id, p)),
+      onChange: (id, p) => (id === this.conn.sessionId ? this.reconcile(p) : this.moveOther(id, p)),
+      onRemove: (id) => {
+        const a = this.others.get(id);
+        a?.sprite.destroy();
+        a?.tag?.destroy();
+        this.others.delete(id);
+      },
     });
   }
 
@@ -267,7 +258,7 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  private async addSelf(p: PlayerState) {
+  private async addSelf(p: NetPlayer) {
     const avatar = this.makeAvatar({ x: p.x, y: p.y }, dirFromIndex(p.dir));
     this.self = {
       avatar,
@@ -281,7 +272,7 @@ export class WorldScene extends Phaser.Scene {
     await this.dress(avatar, JSON.parse(p.appearance), p.name, p.handle, SELF_TAG_COLOR);
   }
 
-  private async addOther(id: string, p: PlayerState) {
+  private async addOther(id: string, p: NetPlayer) {
     const avatar = this.makeAvatar({ x: p.x, y: p.y }, dirFromIndex(p.dir));
     this.others.set(id, avatar);
     await this.dress(avatar, JSON.parse(p.appearance), p.name, p.handle);
@@ -317,7 +308,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** Server state for our own player arrived: drop acknowledged steps and replay the rest. */
-  private reconcile(p: PlayerState) {
+  private reconcile(p: NetPlayer) {
     const self = this.self;
     if (!self) return;
     self.pending = self.pending.filter((s) => s.seq > p.seq);
@@ -330,7 +321,7 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  private moveOther(id: string, p: PlayerState) {
+  private moveOther(id: string, p: NetPlayer) {
     const a = this.others.get(id);
     if (!a) return;
     // Players whose connection dropped are shown faded while the server holds their spot.
@@ -359,7 +350,7 @@ export class WorldScene extends Phaser.Scene {
     const seq = ++self.seq;
     self.pending.push({ seq, dir, run });
     self.lastFaceSent = dir;
-    this.room.send("move", { dir, run, seq });
+    this.conn.send("move", { dir, run, seq });
     a.parity ^= 1;
     this.startStep(a, next, run, now);
     self.moving = true;
@@ -369,7 +360,7 @@ export class WorldScene extends Phaser.Scene {
     const self = this.self!;
     if (self.lastFaceSent === dir) return;
     self.lastFaceSent = dir;
-    this.room.send("face", { dir });
+    this.conn.send("face", { dir });
   }
 
   private interact() {

@@ -7,7 +7,7 @@ import {
 } from "@hearth/shared";
 import { useEffect, useState, type FormEvent } from "react";
 import { ApiFailure, api } from "../api";
-import { describeError } from "./SignIn";
+import { describeError } from "../errors";
 
 const MONTHS = [
   "January",

@@ -1,5 +1,6 @@
 import type { Appearance } from "@hearth/shared";
 import { SHEET_H, SHEET_W } from "./format";
+import { assetUrl } from "../assets";
 import { layersFor, recolor, stack } from "./compose";
 
 const imageCache = new Map<string, Promise<ImageData>>();
@@ -18,7 +19,7 @@ function loadSheet(path: string): Promise<ImageData> {
         resolve(ctx.getImageData(0, 0, SHEET_W, SHEET_H));
       };
       img.onerror = () => reject(new Error(`Could not load sprite sheet ${path}`));
-      img.src = `${import.meta.env.BASE_URL}sprites/${path}`;
+      img.src = assetUrl(`sprites/${path}`);
     });
     imageCache.set(path, p);
   }

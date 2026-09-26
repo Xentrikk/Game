@@ -1,15 +1,9 @@
 import type { ApiError, Channel, CharacterRequest, Me, SessionTokens } from "@hearth/shared";
 import { env } from "./env";
+import { ApiFailure } from "./errors";
 import { supabase } from "./supabase";
 
-export class ApiFailure extends Error {
-  constructor(
-    public status: number,
-    public body: ApiError,
-  ) {
-    super(body.message);
-  }
-}
+export { ApiFailure };
 
 async function call<T>(method: string, path: string, body?: unknown, authed = true): Promise<T> {
   const headers: Record<string, string> = { "content-type": "application/json" };

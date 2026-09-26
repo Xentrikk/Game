@@ -1,0 +1,16 @@
+/* The demo runs inside a hosted frame that pads the root for the phone's safe areas, so size to it. */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+.world {
+  height: 100%;
+}
+
+.demo-note {
+  font-size: 10px;
+  color: var(--ink-dim);
+  margin: 12px 0 0;
+}

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "sprites": "tsx scripts/generate-sprites.ts",
-    "town": "tsx scripts/generate-town.ts"
+    "town": "tsx scripts/generate-town.ts",
+    "build:demo": "vite build --config vite.demo.config.ts"
   },
   "dependencies": {
     "@colyseus/sdk": "^0.18.4",
@@ -35,6 +36,7 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
+    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^3.2.4"
   }
 }

@@ -3,7 +3,8 @@ import { useState, type FormEvent } from "react";
 import { api } from "../api";
 import { supabase } from "../supabase";
 import { COUNTRIES, guessCountry, toE164 } from "./countries";
-import { EnterCode, describeError } from "./SignIn";
+import { describeError } from "../errors";
+import { EnterCode } from "./SignIn";
 
 type View =
   | { name: "main" }

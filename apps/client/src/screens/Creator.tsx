@@ -18,15 +18,15 @@ import {
   profileDetailsSchema,
   randomAppearance,
   type Appearance,
+  type CharacterRequest,
   type Garment,
   type GarmentChoice,
   type Option,
 } from "@hearth/shared";
 import { useState, type FormEvent } from "react";
-import { api } from "../api";
 import { CharacterSprite } from "../components/CharacterSprite";
 import { DIRECTIONS, type Direction } from "../sprites/format";
-import { describeError } from "./SignIn";
+import { describeError } from "../errors";
 
 const TABS = ["Body", "Hair", "Eyes", "Top", "Bottom", "Shoes", "Extra", "About"] as const;
 type Tab = (typeof TABS)[number];
@@ -37,9 +37,11 @@ interface Props {
   initial?: { appearance: Appearance; displayName: string; pronouns: string; bio: string };
   onDone: () => void;
   onCancel?: () => void;
+  /** Saves the character (the real app calls the API; the demo keeps it on the device). */
+  onSave: (req: CharacterRequest) => Promise<unknown>;
 }
 
-export function Creator({ handle, initial, onDone, onCancel }: Props) {
+export function Creator({ handle, initial, onDone, onCancel, onSave }: Props) {
   const [appearance, setAppearance] = useState<Appearance>(initial?.appearance ?? defaultAppearance());
   const [history, setHistory] = useState<Appearance[]>([]);
   const [tab, setTab] = useState<Tab>("Body");
@@ -76,7 +78,7 @@ export function Creator({ handle, initial, onDone, onCancel }: Props) {
     }
     setBusy(true);
     try {
-      await api.saveCharacter({ ...details.data, appearance });
+      await onSave({ ...details.data, appearance });
       onDone();
     } catch (err) {
       setError(describeError(err));

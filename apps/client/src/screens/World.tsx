@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DialogueBox } from "../components/DialogueBox";
 import { InputState } from "../game/input";
-import { joinTown, type TownRoom } from "../game/net";
+import type { WorldConnection } from "../game/connection";
 import { ScreenPipeline } from "../game/pocket";
 import { TouchPad } from "../game/TouchPad";
 import { WorldScene, type WorldUi } from "../game/WorldScene";
@@ -37,7 +37,17 @@ function useCoarsePointer(): boolean {
   return coarse;
 }
 
-export default function World({ onExit }: { onExit: () => void }) {
+export default function World({
+  onExit,
+  connect,
+  notice,
+}: {
+  onExit: () => void;
+  /** Joins the world: the real game server, or the offline demo. */
+  connect: () => Promise<WorldConnection>;
+  /** Optional one-off message shown when entering (the demo uses it to explain itself). */
+  notice?: { pages: string[]; speaker?: string };
+}) {
   const [status, setStatus] = useState<Status>("joining");
   const [error, setError] = useState("");
   const [dialogue, setDialogue] = useState<{ pages: string[]; page: number; speaker?: string } | null>(null);
@@ -53,7 +63,7 @@ export default function World({ onExit }: { onExit: () => void }) {
   const screenRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<WorldScene | null>(null);
-  const roomRef = useRef<TownRoom | null>(null);
+  const roomRef = useRef<WorldConnection | null>(null);
   const dialogueRef = useRef(dialogue);
   const typingRef = useRef(false);
   const menuRef = useRef(menuOpen);
@@ -85,7 +95,7 @@ export default function World({ onExit }: { onExit: () => void }) {
     // Join on the next tick: React's StrictMode mounts effects twice in development, and two
     // overlapping joins would make the second one "replace" the first.
     const start = setTimeout(() =>
-      joinTown()
+      connect()
         .then((room) => {
           if (cancelled) return void room.leave();
           roomRef.current = room;
@@ -105,13 +115,14 @@ export default function World({ onExit }: { onExit: () => void }) {
             scale: { mode: Phaser.Scale.NONE },
             pipeline: { ScreenPipeline } as unknown as Phaser.Types.Core.PipelineConfig,
           });
-          game.scene.add("world", WorldScene, true, { room, ui, pocket: readPocket(), hourOverride });
+          game.scene.add("world", WorldScene, true, { conn: room, ui, pocket: readPocket(), hourOverride });
           game.events.once(Phaser.Core.Events.READY, () => {
             // Scenes only exist once Phaser has booted.
             sceneRef.current = game?.scene.getScene("world") as WorldScene;
             fit();
           });
           setStatus("connected");
+          if (notice) setDialogue({ pages: notice.pages, page: 0, speaker: notice.speaker });
         })
         .catch((e: unknown) => {
           setError(e instanceof Error ? e.message : "Couldn't reach the Town Square.");
@@ -156,6 +167,8 @@ export default function World({ onExit }: { onExit: () => void }) {
       void roomRef.current?.leave();
       roomRef.current = null;
     };
+    // connect and notice are fixed for the lifetime of this screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ui, attempt]);
 
   const setPocket = useCallback((on: boolean) => {
@@ -181,13 +194,10 @@ export default function World({ onExit }: { onExit: () => void }) {
 
   // Test and debugging hooks (development builds only).
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
+    if (!import.meta.env.DEV && import.meta.env.VITE_TEST_HOOKS !== "1") return;
     (window as unknown as { __hearth?: unknown }).__hearth = {
       snapshot: () => sceneRef.current?.snapshot(),
-      drop: () =>
-        (
-          roomRef.current?.connection as unknown as { transport: { ws: WebSocket } } | undefined
-        )?.transport.ws.close(),
+      drop: () => roomRef.current?.simulateDrop(),
       setHour: (h?: number) => sceneRef.current?.setHourOverride(h),
       status: () => status,
       dialogue: () => (dialogueRef.current ? dialogueRef.current.pages[dialogueRef.current.page] : null),

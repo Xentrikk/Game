@@ -44,6 +44,10 @@ Sign in, then choose **Enter the Town Square**. Open it in a second browser (or 
 
 In development, add `?hour=22` to the URL to preview the night tint.
 
+## Offline preview
+
+`pnpm --filter @hearth/client build:demo` builds a single self-contained HTML file (`apps/client/dist-demo/demo.html`) that needs no server. You make a character and walk the Town Square with a few bot villagers, using the same movement rules as the real server. It's for sharing a quick look at the game. Sign-up, friends and chat need the real server.
+
 ## Tests
 
 ```sh

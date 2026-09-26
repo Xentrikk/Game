@@ -1,4 +1,5 @@
-import { STEP_MS_RUN, STEP_MS_WALK, tryStep, type Dir, type WorldMap } from "@hearth/shared";
+import { STEP_MS_RUN, STEP_MS_WALK, type Dir } from "./constants";
+import { tryStep, type WorldMap } from "./map";
 
 /**
  * Speed check for steps. A token bucket measured in milliseconds: it refills in real time, and each step

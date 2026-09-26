@@ -54,6 +54,7 @@ jobs:
           SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN: local-dev-placeholder
       - run: pnpm test:db
       - run: pnpm --filter @hearth/client exec playwright install --with-deps chromium
+      - run: pnpm --filter @hearth/client build:demo
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()

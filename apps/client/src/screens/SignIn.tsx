@@ -1,6 +1,7 @@
 import { isE164, type Channel } from "@hearth/shared";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { ApiFailure, api } from "../api";
+import { api } from "../api";
+import { describeError } from "../errors";
 import { Captcha, captchaRequired } from "../components/Captcha";
 import { DialogueBox } from "../components/DialogueBox";
 import { supabase } from "../supabase";
@@ -58,22 +59,6 @@ export function SignIn() {
       resend={() => api.sendCode(step.channel, step.target).then(() => undefined)}
     />
   );
-}
-
-export function describeError(e: unknown): string {
-  if (e instanceof ApiFailure) {
-    if (e.body.retryAfterSec && e.status === 429) {
-      const s = e.body.retryAfterSec;
-      if (s < 60) return `${e.message} (about ${s} second${s === 1 ? "" : "s"})`;
-      const mins = Math.ceil(s / 60);
-      return `${e.message} (about ${mins} min${mins === 1 ? "" : "s"})`;
-    }
-    if (e.body.attemptsLeft !== undefined && e.body.attemptsLeft > 0) {
-      return `${e.message} ${e.body.attemptsLeft} ${e.body.attemptsLeft === 1 ? "try" : "tries"} left.`;
-    }
-    return e.message;
-  }
-  return e instanceof Error ? e.message : "Something went wrong.";
 }
 
 function EnterTarget({

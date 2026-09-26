@@ -7,18 +7,20 @@ import {
   TOWN_MAX_PLAYERS,
   TownState,
   appearanceSchema,
+  applyStep,
   dirIndex,
   faceMessage,
   moveMessage,
+  newMover,
   parseMap,
   type Appearance,
+  type Mover,
   type TiledMap,
   type WorldMap,
 } from "@hearth/shared";
 import town from "@hearth/shared/maps/town.json" with { type: "json" };
 import type { TokenVerifier } from "../auth";
 import type { Repo } from "../repo";
-import { applyStep, newMover, type Mover } from "./movement";
 
 export interface WorldDeps {
   repo: Repo;

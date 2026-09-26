@@ -1,6 +1,7 @@
 import type { Me } from "@hearth/shared";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { ApiFailure, api } from "./api";
+import { joinTown } from "./game/net";
 import { supabase } from "./supabase";
 import { Account } from "./screens/Account";
 import { Creator } from "./screens/Creator";
@@ -90,13 +91,15 @@ export function App() {
   if (!onboarding.ageVerified) return <AgeGate onDone={next} onBlocked={() => void block()} />;
   if (!onboarding.termsAccepted) return <Terms onDone={next} />;
   if (!onboarding.handle) return <PickHandle onDone={next} />;
-  if (!onboarding.hasCharacter) return <Creator handle={onboarding.handle} onDone={next} />;
+  if (!onboarding.hasCharacter)
+    return <Creator handle={onboarding.handle} onDone={next} onSave={api.saveCharacter} />;
 
   if (overlay === "wardrobe") {
     return (
       <Creator
         handle={onboarding.handle}
         initial={{ appearance: me.appearance!, ...me.profile! }}
+        onSave={api.saveCharacter}
         onDone={() => {
           setOverlay("none");
           next();
@@ -115,7 +118,7 @@ export function App() {
           </main>
         }
       >
-        <World onExit={() => setOverlay("none")} />
+        <World onExit={() => setOverlay("none")} connect={joinTown} />
       </Suspense>
     );
   }

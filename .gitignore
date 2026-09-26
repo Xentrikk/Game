@@ -11,3 +11,4 @@ apps/client/playwright-report/
 apps/client/test-results/
 apps/mobile/android/
 apps/mobile/ios/
+dist-demo/
