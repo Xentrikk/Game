@@ -3,15 +3,27 @@ import type {
   Channel,
   CharacterRequest,
   ChatMessage,
+  CoinLedgerEntry,
   ConversationSummary,
+  DailyGiftResult,
   FriendsResponse,
+  FurniturePlacement,
   GroupIcon,
+  HomeAccess,
+  HomeSummary,
+  InventoryEntry,
+  ItemDefinition,
+  ItemStack,
+  Letter,
   Me,
   PublicProfile,
   Relationship,
   ReportReason,
   SessionTokens,
   Settings,
+  ShopId,
+  TradeHistoryEntry,
+  TradeState,
 } from "@hearth/shared";
 import { env } from "./env";
 import { ApiFailure } from "./errors";
@@ -157,4 +169,60 @@ export const api = {
   setAway: (away: boolean) => call<{ ok: true }>("POST", "/api/presence", { away }),
   pushKey: () => call<{ publicKey: string | null }>("GET", "/api/push/key", undefined, false),
   subscribePush: (sub: PushSubscriptionJSON) => call<{ ok: true }>("POST", "/api/push/subscriptions", sub),
+
+  // ---------- Inventory, wallet and shops ----------
+  inventory: () => call<{ inventory: InventoryEntry[] }>("GET", "/api/inventory"),
+  wallet: () => call<{ balance: number }>("GET", "/api/wallet"),
+  ledger: () => call<{ entries: CoinLedgerEntry[] }>("GET", "/api/wallet/ledger"),
+  claimDailyGift: () => call<DailyGiftResult>("POST", "/api/daily-gift/claim"),
+  shop: (shopId: ShopId) => call<{ items: ItemDefinition[] }>("GET", `/api/shop/${shopId}`, undefined, false),
+  buyItem: (itemId: string, quantity: number) =>
+    call<{ balance: number; inventory: InventoryEntry[] }>("POST", "/api/shop/buy", {
+      itemId,
+      quantity,
+      idempotencyKey: crypto.randomUUID(),
+    }),
+  sellItem: (itemId: string, quantity: number) =>
+    call<{ balance: number; inventory: InventoryEntry[] }>("POST", "/api/shop/sell", {
+      itemId,
+      quantity,
+      idempotencyKey: crypto.randomUUID(),
+    }),
+
+  // ---------- Homes ----------
+  home: (ownerId: string) => call<HomeSummary>("GET", `/api/homes/${ownerId}`),
+  homeEntry: (ownerId: string) => call<{ canEnter: boolean }>("GET", `/api/homes/${ownerId}/entry`),
+  setHomeAccess: (access: HomeAccess) => call<HomeSummary>("PUT", "/api/homes/access", { access }),
+  addHomeGuest: (userId: string) => call<HomeSummary>("POST", "/api/homes/guests", { userId }),
+  removeHomeGuest: (userId: string) => call<HomeSummary>("DELETE", `/api/homes/guests/${userId}`),
+  homeFurniture: (ownerId: string) =>
+    call<{ furniture: FurniturePlacement[] }>("GET", `/api/homes/${ownerId}/furniture`),
+  placeFurniture: (itemId: string, x: number, y: number) =>
+    call<FurniturePlacement>("POST", "/api/homes/furniture", { itemId, x, y }),
+  removeFurniture: (id: string) => call<{ ok: true }>("DELETE", `/api/homes/furniture/${id}`),
+
+  // ---------- Letters ----------
+  letters: () => call<{ letters: Letter[]; mailboxFlag: boolean }>("GET", "/api/letters"),
+  sentLetters: () => call<{ letters: Letter[] }>("GET", "/api/letters/sent"),
+  letter: (id: string) => call<Letter>("GET", `/api/letters/${id}`),
+  sendLetter: (req: {
+    toUserId: string;
+    subject?: string;
+    body: string;
+    stationeryId?: string;
+    items?: ItemStack;
+    coins?: number;
+  }) => call<Letter>("POST", "/api/letters", req),
+  claimLetter: (id: string) => call<Letter>("POST", `/api/letters/${id}/claim`),
+
+  // ---------- Trading ----------
+  openTrade: (userId: string) => call<TradeState>("POST", "/api/trades", { userId }),
+  tradeHistory: () => call<{ history: TradeHistoryEntry[] }>("GET", "/api/trades/history"),
+  trade: (id: string) => call<TradeState>("GET", `/api/trades/${id}`),
+  updateTradeOffer: (id: string, items: ItemStack, coins: number) =>
+    call<TradeState>("PUT", `/api/trades/${id}/offer`, { items, coins }),
+  setTradeReady: (id: string, ready: boolean) =>
+    call<TradeState>("POST", `/api/trades/${id}/ready`, { ready }),
+  cancelTrade: (id: string) => call<TradeState>("POST", `/api/trades/${id}/cancel`),
+  confirmTrade: (id: string) => call<TradeState>("POST", `/api/trades/${id}/confirm`),
 };

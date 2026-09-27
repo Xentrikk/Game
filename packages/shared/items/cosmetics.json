@@ -1,0 +1,78 @@
+[
+  {
+    "id": "bandana",
+    "name": "Bandana",
+    "category": "cosmetics",
+    "rarity": "common",
+    "tradeable": true,
+    "stackable": false,
+    "maxStack": 1,
+    "sprite": "bandana",
+    "description": "A jaunty triangle of fabric.",
+    "price": 60,
+    "shop": "boutique"
+  },
+  {
+    "id": "party_hat",
+    "name": "Party Hat",
+    "category": "cosmetics",
+    "rarity": "common",
+    "tradeable": true,
+    "stackable": false,
+    "maxStack": 1,
+    "sprite": "party_hat",
+    "description": "Pointy, striped, and always ready to celebrate.",
+    "price": 40,
+    "shop": "boutique"
+  },
+  {
+    "id": "star_shades",
+    "name": "Star Shades",
+    "category": "cosmetics",
+    "rarity": "uncommon",
+    "tradeable": true,
+    "stackable": false,
+    "maxStack": 1,
+    "sprite": "star_shades",
+    "description": "Sunglasses shaped like little stars.",
+    "price": 150,
+    "shop": "boutique"
+  },
+  {
+    "id": "wizard_robe",
+    "name": "Wizard Robe",
+    "category": "cosmetics",
+    "rarity": "uncommon",
+    "tradeable": true,
+    "stackable": false,
+    "maxStack": 1,
+    "sprite": "wizard_robe",
+    "description": "Faintly smells of woodsmoke and old books.",
+    "price": 250,
+    "shop": "boutique"
+  },
+  {
+    "id": "top_hat",
+    "name": "Top Hat",
+    "category": "cosmetics",
+    "rarity": "rare",
+    "tradeable": true,
+    "stackable": false,
+    "maxStack": 1,
+    "sprite": "top_hat",
+    "description": "Very distinguished. Very shiny.",
+    "price": 400,
+    "shop": "boutique"
+  },
+  {
+    "id": "founders_badge",
+    "name": "Founder's Badge",
+    "category": "cosmetics",
+    "rarity": "rare",
+    "tradeable": false,
+    "stackable": false,
+    "maxStack": 1,
+    "sprite": "founders_badge",
+    "description": "Given to the very first residents of Hearth. Can't be traded away."
+  }
+]

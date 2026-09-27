@@ -1,7 +1,7 @@
 import type { Me } from "@hearth/shared";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { ApiFailure, api } from "./api";
-import { joinTown } from "./game/net";
+import { joinHome, joinTown } from "./game/net";
 import { SocialProvider } from "./social/context";
 import { registerServiceWorker } from "./social/push";
 import { SocialUiProvider, useSocialUi } from "./social/SocialUi";
@@ -11,6 +11,7 @@ import { Creator } from "./screens/Creator";
 import { Home } from "./screens/Home";
 import { AgeGate, Blocked, PickHandle, Terms } from "./screens/Onboarding";
 import { SignIn } from "./screens/SignIn";
+import { HomeManagePanel } from "./social/HomeManagePanel";
 
 // Invite links (/add/CODE) are remembered through sign-in, then opened once the player is ready.
 const INVITE_KEY = "hearth.invite";
@@ -36,9 +37,11 @@ type State =
   | { name: "error"; message: string }
   | { name: "ready"; me: Me };
 
+type Overlay = { kind: "none" | "town" | "wardrobe" | "account" } | { kind: "home"; ownerId: string };
+
 export function App() {
   const [state, setState] = useState<State>({ name: "loading" });
-  const [overlay, setOverlay] = useState<"none" | "town" | "wardrobe" | "account">("none");
+  const [overlay, setOverlay] = useState<Overlay>({ kind: "none" });
   // Once blocked, stay on the blocked screen until the page is reloaded, even after signing out.
   const blocked = useRef(false);
 
@@ -70,7 +73,7 @@ export function App() {
     void refresh();
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
-        setOverlay("none");
+        setOverlay({ kind: "none" });
         void refresh();
       }
     });
@@ -157,27 +160,37 @@ function SignedIn({
   next,
 }: {
   me: Me;
-  overlay: "none" | "town" | "wardrobe" | "account";
-  setOverlay: (o: "none" | "town" | "wardrobe" | "account") => void;
+  overlay: Overlay;
+  setOverlay: (o: Overlay) => void;
   next: () => void;
 }) {
+  const ui = useSocialUi();
+  const close = () => setOverlay({ kind: "none" });
+  const [managingHome, setManagingHome] = useState(false);
+  // Visiting a friend's home (from a profile card, wherever it's open) leaves whatever's on screen.
+  useEffect(() => {
+    ui.setGoHome((ownerId) => setOverlay({ kind: "home", ownerId }));
+    return () => ui.setGoHome(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const onboarding = me.onboarding;
-  if (overlay === "wardrobe") {
+  if (overlay.kind === "wardrobe") {
     return (
       <Creator
         handle={onboarding.handle!}
         initial={{ appearance: me.appearance!, ...me.profile! }}
         onSave={api.saveCharacter}
         onDone={() => {
-          setOverlay("none");
+          close();
           next();
         }}
-        onCancel={() => setOverlay("none")}
+        onCancel={close}
       />
     );
   }
-  if (overlay === "account") return <Account me={me} onBack={() => setOverlay("none")} onChanged={next} />;
-  if (overlay === "town") {
+  if (overlay.kind === "account") return <Account me={me} onBack={close} onChanged={next} />;
+  if (overlay.kind === "town") {
     return (
       <Suspense
         fallback={
@@ -186,16 +199,39 @@ function SignedIn({
           </main>
         }
       >
-        <World onExit={() => setOverlay("none")} connect={joinTown} />
+        <World onExit={close} connect={joinTown} />
       </Suspense>
+    );
+  }
+  if (overlay.kind === "home") {
+    return (
+      <>
+        <Suspense
+          fallback={
+            <main className="screen">
+              <p aria-live="polite">Walking in…</p>
+            </main>
+          }
+        >
+          <World
+            onExit={close}
+            connect={() => joinHome(overlay.ownerId)}
+            kind="home"
+            ownerId={overlay.ownerId}
+            onManageHome={overlay.ownerId === me.userId ? () => setManagingHome(true) : undefined}
+          />
+        </Suspense>
+        {managingHome && <HomeManagePanel ownerId={overlay.ownerId} onClose={() => setManagingHome(false)} />}
+      </>
     );
   }
   return (
     <Home
       me={me}
-      onTown={() => setOverlay("town")}
-      onWardrobe={() => setOverlay("wardrobe")}
-      onAccount={() => setOverlay("account")}
+      onTown={() => setOverlay({ kind: "town" })}
+      onMyHome={() => setOverlay({ kind: "home", ownerId: me.userId })}
+      onWardrobe={() => setOverlay({ kind: "wardrobe" })}
+      onAccount={() => setOverlay({ kind: "account" })}
     />
   );
 }

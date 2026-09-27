@@ -1,4 +1,4 @@
-import type { ReportReason } from "@hearth/shared";
+import type { ReportReason, ShopId } from "@hearth/shared";
 import { createContext, useContext, useSyncExternalStore } from "react";
 import type { SocialState, SocialStore } from "./store";
 
@@ -12,6 +12,10 @@ export type PanelState =
   | { kind: "friends"; tab?: "friends" | "requests" | "add" }
   | { kind: "chat"; conversationId?: string | null }
   | { kind: "settings" }
+  | { kind: "inventory" }
+  | { kind: "shop"; shopId: ShopId }
+  | { kind: "letters" }
+  | { kind: "trade"; tradeId: string }
   | null;
 
 export interface SocialUi {
@@ -19,10 +23,17 @@ export interface SocialUi {
   openChat(conversationId?: string | null): void;
   openSettings(): void;
   openProfile(handle: string, reportSay?: (reason: ReportReason, note: string) => Promise<unknown>): void;
+  openInventory(): void;
+  openShop(shopId: ShopId): void;
+  openLetters(): void;
+  openTrade(tradeId: string): void;
   close(): void;
   panel: PanelState;
   /** The world registers how to "Go to" a friend's Town Square instance while it's open. */
   setGoTo(handler: ((roomId: string) => void) | null): void;
+  /** Leaves wherever you are and opens someone's private home (the app registers this). */
+  goHome(ownerId: string): void;
+  setGoHome(handler: ((ownerId: string) => void) | null): void;
 }
 
 export const SocialUiContext = createContext<SocialUi | null>(null);

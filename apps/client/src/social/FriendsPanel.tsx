@@ -14,10 +14,19 @@ interface Props {
   onOpenChat: (conversationId: string) => void;
   /** In the world: join a friend's Town Square instance. */
   onGoTo?: (roomId: string) => void;
+  /** Leaves wherever you are and visits this friend's home. */
+  onVisitHome: (ownerId: string) => void;
   initialTab?: Tab;
 }
 
-export function FriendsPanel({ onClose, onOpenProfile, onOpenChat, onGoTo, initialTab = "friends" }: Props) {
+export function FriendsPanel({
+  onClose,
+  onOpenProfile,
+  onOpenChat,
+  onGoTo,
+  onVisitHome,
+  initialTab = "friends",
+}: Props) {
   const store = useSocialStore();
   const data = useSocial((s) => s.friends);
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -86,6 +95,9 @@ export function FriendsPanel({ onClose, onOpenProfile, onOpenChat, onGoTo, initi
                   Go
                 </button>
               )}
+              <button type="button" className="chip" onClick={() => onVisitHome(f.profile.id)}>
+                Home
+              </button>
               <button
                 type="button"
                 className="chip"

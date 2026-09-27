@@ -118,6 +118,25 @@ export async function createPlayer(handle: string, appearance?: unknown): Promis
   return { email, password, handle, token };
 }
 
+/** Makes two test players friends directly through the API, skipping the UI (already covered by phase3 tests). */
+export async function befriendViaApi(a: TestPlayer, b: TestPlayer) {
+  const call = async (token: string, method: string, path: string, body?: unknown) => {
+    const res = await fetch(`${E2E_API}${path}`, {
+      method,
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`${path}: ${res.status} ${await res.text()}`);
+    return res.json();
+  };
+  await call(a.token, "POST", "/api/friends/requests", { handle: b.handle });
+  const { incoming } = (await call(b.token, "GET", "/api/friends")) as {
+    incoming: { id: string; profile: { handle: string } }[];
+  };
+  const req = incoming.find((r) => r.profile.handle === a.handle)!;
+  await call(b.token, "POST", `/api/friends/requests/${req.id}/accept`);
+}
+
 /** Signs in through the UI with email + password. */
 export async function signInWithPassword(page: Page, player: TestPlayer) {
   await page.goto("/");

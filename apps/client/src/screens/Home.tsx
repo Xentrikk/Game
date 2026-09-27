@@ -7,11 +7,13 @@ import { DialogueBox } from "../components/DialogueBox";
 export function Home({
   me,
   onTown,
+  onMyHome,
   onWardrobe,
   onAccount,
 }: {
   me: Me;
   onTown: () => void;
+  onMyHome: () => void;
   onWardrobe: () => void;
   onAccount: () => void;
 }) {
@@ -19,6 +21,9 @@ export function Home({
   const ui = useSocialUi();
   const conversations = useSocial((s) => s.conversations);
   const friends = useSocial((s) => s.friends);
+  const wallet = useSocial((s) => s.wallet);
+  const mailboxFlag = useSocial((s) => s.mailboxFlag);
+  const pendingTrade = useSocial((s) => s.pendingTrade);
   const unread = conversations.reduce((n, c) => n + (c.muted ? 0 : c.unread), 0);
   const requests = friends?.incoming.length ?? 0;
   return (
@@ -38,11 +43,21 @@ export function Home({
         </p>
         {profile.pronouns && <p className="hint">{profile.pronouns}</p>}
         {profile.bio && <p className="hint">{profile.bio}</p>}
+        {wallet !== null && (
+          <p className="hint">
+            <strong>{wallet}</strong> coins
+          </p>
+        )}
         <DialogueBox text="You're all set! Add your friends, then meet them in the Town Square." />
         <ul className="menu">
           <li>
             <button className="menu-item btn-primary" onClick={onTown} autoFocus>
               Enter the Town Square
+            </button>
+          </li>
+          <li>
+            <button className="menu-item" onClick={onMyHome}>
+              My home
             </button>
           </li>
           <li>
@@ -55,6 +70,28 @@ export function Home({
               Friends{requests > 0 && <span className="unread inline">{requests}</span>}
             </button>
           </li>
+          <li>
+            <button className="menu-item" onClick={() => ui.openInventory()}>
+              Inventory
+            </button>
+          </li>
+          <li>
+            <button className="menu-item" onClick={() => ui.openShop("general")}>
+              Shops
+            </button>
+          </li>
+          <li>
+            <button className="menu-item" onClick={() => ui.openLetters()}>
+              Letters{mailboxFlag && <span className="unread inline">•</span>}
+            </button>
+          </li>
+          {pendingTrade && (
+            <li>
+              <button className="menu-item" onClick={() => ui.openTrade(pendingTrade)}>
+                Trade <span className="unread inline">•</span>
+              </button>
+            </li>
+          )}
           <li>
             <button className="menu-item" onClick={onWardrobe}>
               Wardrobe

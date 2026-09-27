@@ -1,11 +1,15 @@
 import { Server } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
-import { TOWN_ROOM } from "@hearth/shared";
+import { HOME_ROOM, TOWN_ROOM } from "@hearth/shared";
 import { Redis } from "ioredis";
 import { createApp } from "./app";
 import { LocalBus, RedisBus } from "./bus";
 import { ChatRepo } from "./chat/chatRepo";
 import { connectDb } from "./db";
+import { EconomyRepo } from "./economy/economyRepo";
+import { HomeRepo } from "./economy/homeRepo";
+import { LetterRepo } from "./economy/letterRepo";
+import { TradeRepo } from "./economy/tradeRepo";
 import { PresenceService } from "./social/presence";
 import { PushService } from "./social/push";
 import { SocialRepo } from "./social/socialRepo";
@@ -15,6 +19,7 @@ import { loadConfig } from "./config";
 import { GoTrueClient } from "./gotrue";
 import { OtpService } from "./otp";
 import { SupabaseRepo } from "./repo";
+import { HomeRoom } from "./rooms/HomeRoom";
 import { TownRoom } from "./rooms/TownRoom";
 import { MemoryStore, RedisStore } from "./store";
 
@@ -27,6 +32,10 @@ const bus = config.REDIS_URL
 const sql = connectDb(config.DATABASE_URL);
 const social = new SocialRepo(sql);
 const chat = new ChatRepo(sql);
+const economy = new EconomyRepo(sql);
+const homes = new HomeRepo(sql);
+const letters = new LetterRepo(sql);
+const trades = new TradeRepo(sql);
 const presence = new PresenceService(store, bus, social);
 const vapid =
   config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY
@@ -63,18 +72,24 @@ const api = createApp({
   corsOrigins: config.CORS_ORIGINS.split(",").map((s) => s.trim()),
   trustProxy: config.TRUST_PROXY,
   social: { social, chat, presence, push, bus, store, appUrl: config.APP_URL },
+  economy: { economy, homes, letters, trades, social, presence, push, bus },
 });
 
-TownRoom.deps = {
+const worldSocial = {
+  blockedEitherWay: (id: string) => social.blockedEitherWay(id),
+  muted: (id: string) => social.muted(id),
+  createReport: (r: Parameters<typeof social.createReport>[0]) => social.createReport(r),
+  setLocation: (id: string, loc: Parameters<typeof presence.setLocation>[1]) => presence.setLocation(id, loc),
+  bus,
+};
+
+TownRoom.deps = { repo, verifyToken, social: worldSocial };
+HomeRoom.deps = {
   repo,
   verifyToken,
-  social: {
-    blockedEitherWay: (id) => social.blockedEitherWay(id),
-    muted: (id) => social.muted(id),
-    createReport: (r) => social.createReport(r),
-    setLocation: (id, loc) => presence.setLocation(id, loc),
-    bus,
-  },
+  social: worldSocial,
+  homes,
+  social2: social,
 };
 
 // One HTTP server for the REST API and the Colyseus game server (matchmaking + WebSockets).
@@ -85,6 +100,8 @@ const server = new Server({
   },
 });
 server.define(TOWN_ROOM, TownRoom);
+// One room instance per home: every visitor to the same home lands in the same instance.
+server.define(HOME_ROOM, HomeRoom).filterBy(["ownerId"]);
 
 await server.listen(config.PORT);
 console.log(`Hearth server listening on http://localhost:${config.PORT}`);

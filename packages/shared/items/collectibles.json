@@ -1,0 +1,62 @@
+[
+  {
+    "id": "seashell",
+    "name": "Seashell",
+    "category": "collectibles",
+    "rarity": "common",
+    "tradeable": true,
+    "stackable": true,
+    "maxStack": 99,
+    "sprite": "seashell",
+    "description": "Still smells a little like the sea.",
+    "sellPrice": 8
+  },
+  {
+    "id": "koi_sticker",
+    "name": "Koi Sticker",
+    "category": "collectibles",
+    "rarity": "common",
+    "tradeable": true,
+    "stackable": true,
+    "maxStack": 99,
+    "sprite": "koi_sticker",
+    "description": "A glossy sticker of an orange koi.",
+    "sellPrice": 10
+  },
+  {
+    "id": "firefly_jar",
+    "name": "Firefly in a Jar",
+    "category": "collectibles",
+    "rarity": "uncommon",
+    "tradeable": true,
+    "stackable": true,
+    "maxStack": 99,
+    "sprite": "firefly_jar",
+    "description": "It blinks softly. Please let it go eventually.",
+    "sellPrice": 30
+  },
+  {
+    "id": "moon_moth",
+    "name": "Moon Moth",
+    "category": "collectibles",
+    "rarity": "rare",
+    "tradeable": true,
+    "stackable": true,
+    "maxStack": 99,
+    "sprite": "moon_moth",
+    "description": "Pale wings, dust like starlight.",
+    "sellPrice": 60
+  },
+  {
+    "id": "four_leaf_clover",
+    "name": "Four-Leaf Clover",
+    "category": "collectibles",
+    "rarity": "rare",
+    "tradeable": true,
+    "stackable": true,
+    "maxStack": 99,
+    "sprite": "four_leaf_clover",
+    "description": "Lucky. Probably.",
+    "sellPrice": 80
+  }
+]

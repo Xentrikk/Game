@@ -24,6 +24,12 @@ export interface SocialState {
   /** conversationId → userId → typing-until timestamp. */
   typing: Record<string, Record<string, number>>;
   openConversation: string | null;
+  /** Coin balance, kept current so a toolbar or menu can show it without its own fetch. */
+  wallet: number | null;
+  /** Whether the mailbox has anything unclaimed (for a badge, like unread chats). */
+  mailboxFlag: boolean;
+  /** The most recent trade someone updated (including opening one with you), until you open it. */
+  pendingTrade: string | null;
 }
 
 const PAGE = 50;
@@ -41,7 +47,7 @@ function insertSorted(items: ChatMessage[], m: ChatMessage): ChatMessage[] {
 export class SocialStore {
   private state: SocialState;
   private listeners = new Set<() => void>();
-  private stream = new EventStream();
+  private eventStream = new EventStream();
   private off?: () => void;
 
   constructor(me: string) {
@@ -53,7 +59,15 @@ export class SocialStore {
       threads: {},
       typing: {},
       openConversation: null,
+      wallet: null,
+      mailboxFlag: false,
+      pendingTrade: null,
     };
+  }
+
+  /** The live event stream, for panels (trade, letters) that want updates without polling. */
+  get stream(): EventStream {
+    return this.eventStream;
   }
 
   // ---------- React integration ----------
@@ -104,9 +118,13 @@ export class SocialStore {
     switch (e.type) {
       case "connected":
         this.set({ connected: true });
-        await Promise.all([this.refreshFriends(), this.refreshConversations(), this.catchUpThreads()]).catch(
-          () => undefined,
-        );
+        await Promise.all([
+          this.refreshFriends(),
+          this.refreshConversations(),
+          this.catchUpThreads(),
+          this.refreshWallet(),
+          this.refreshMailboxFlag(),
+        ]).catch(() => undefined);
         return;
       case "disconnected":
         this.set({ connected: false });
@@ -157,7 +175,29 @@ export class SocialStore {
         setTimeout(() => this.set({ typing: { ...this.state.typing } }), TYPING_MS + 50);
         return;
       }
+      case "wallet_changed":
+        this.set({ wallet: e.balance });
+        return;
+      case "letter":
+        this.set({ mailboxFlag: true });
+        return;
+      case "trade_updated":
+        this.set({ pendingTrade: e.tradeId });
+        return;
     }
+  }
+
+  /** Call when a trade panel opens on this trade, so the notice doesn't linger. */
+  clearPendingTrade(tradeId: string) {
+    if (this.state.pendingTrade === tradeId) this.set({ pendingTrade: null });
+  }
+
+  async refreshWallet() {
+    this.set({ wallet: (await api.wallet()).balance });
+  }
+
+  async refreshMailboxFlag() {
+    this.set({ mailboxFlag: (await api.letters()).mailboxFlag });
   }
 
   private async catchUpThreads() {

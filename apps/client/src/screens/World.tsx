@@ -6,7 +6,7 @@ import type { WorldConnection } from "../game/connection";
 import { InputState } from "../game/input";
 import { ScreenPipeline } from "../game/pocket";
 import { TouchPad } from "../game/TouchPad";
-import { WorldScene, type WorldUi } from "../game/WorldScene";
+import { WorldScene, type WorldKind, type WorldUi } from "../game/WorldScene";
 import { SocialUiContext, useSocialOptional } from "../social/contexts";
 import { EMOTE_LABELS, EmoteIcon } from "../social/emotes";
 
@@ -44,20 +44,29 @@ interface Props {
   onExit: () => void;
   /** Joins the world: the real game server, or the offline demo. `roomId` joins a specific instance. */
   connect: (opts?: { roomId?: string }) => Promise<WorldConnection>;
+  /** Which place this is: the Town Square, or a private home. Defaults to "town". */
+  kind?: WorldKind;
+  /** In home mode, whose home this is. */
+  ownerId?: string;
+  /** In your own home: opens the access/guests/furniture manager (owned by the caller, not the demo). */
+  onManageHome?: () => void;
   /** Optional one-off message shown when entering (the demo uses it to explain itself). */
   notice?: { pages: string[]; speaker?: string };
 }
 
-/** The Town Square. With a signed-in social store it also offers chats, friends and player cards. */
+/** The Town Square, or a private home. With a signed-in social store it also offers chats, friends and player cards. */
 export default function World(props: Props) {
   const social = useContext(SocialUiContext);
   const [target, setTarget] = useState<{ roomId?: string; n: number }>({ n: 0 });
-  // While the world is open, "Go to friend" rejoins at that friend's Town Square instance.
+  const inTown = (props.kind ?? "town") === "town";
+  // While the Town Square is open, "Go to friend" rejoins at that friend's instance. Doesn't apply
+  // to a private home: there's only ever one instance of any given home.
   useEffect(() => {
+    if (!inTown) return;
     social?.setGoTo((roomId) => setTarget((t) => ({ roomId, n: t.n + 1 })));
     return () => social?.setGoTo(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [inTown]);
   return <WorldScreen {...props} target={target} onRetry={() => setTarget((t) => ({ n: t.n + 1 }))} />;
 }
 
@@ -76,13 +85,18 @@ interface FloatingEmote {
 function WorldScreen({
   onExit,
   connect,
+  kind = "town",
+  ownerId,
+  onManageHome,
   notice,
   target,
   onRetry,
 }: Props & { target: { roomId?: string; n: number }; onRetry: () => void }) {
   const socialUi = useContext(SocialUiContext);
   const conversations = useSocialOptional((s) => s.conversations);
+  const me = useSocialOptional((s) => s.me);
   const unread = conversations?.reduce((n, c) => n + (c.muted ? 0 : c.unread), 0) ?? 0;
+  const isOwnHome = kind === "home" && ownerId === me;
 
   const [status, setStatus] = useState<Status>("joining");
   const [error, setError] = useState("");
@@ -190,7 +204,13 @@ function WorldScreen({
               scale: { mode: Phaser.Scale.NONE },
               pipeline: { ScreenPipeline } as unknown as Phaser.Types.Core.PipelineConfig,
             });
-            game.scene.add("world", WorldScene, true, { conn: room, ui, pocket: readPocket(), hourOverride });
+            game.scene.add("world", WorldScene, true, {
+              conn: room,
+              ui,
+              pocket: readPocket(),
+              hourOverride,
+              kind,
+            });
             game.events.once(Phaser.Core.Events.READY, () => {
               // Scenes only exist once Phaser has booted.
               sceneRef.current = game?.scene.getScene("world") as WorldScene;
@@ -422,6 +442,19 @@ function WorldScreen({
                     Always run: {running ? "On" : "Off"}
                   </button>
                 </li>
+                {isOwnHome && onManageHome && (
+                  <li>
+                    <button
+                      className="menu-item"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onManageHome();
+                      }}
+                    >
+                      Manage home
+                    </button>
+                  </li>
+                )}
                 {socialUi && (
                   <li>
                     <button
@@ -437,7 +470,7 @@ function WorldScreen({
                 )}
                 <li>
                   <button className="menu-item" onClick={onExit}>
-                    Leave town
+                    {kind === "home" ? "Leave" : "Leave town"}
                   </button>
                 </li>
                 <li>
@@ -485,7 +518,7 @@ function WorldScreen({
         </nav>
         {status !== "connected" && (
           <div className="world-banner" role="status">
-            {status === "joining" && "Walking into town…"}
+            {status === "joining" && (kind === "home" ? "Walking in…" : "Walking into town…")}
             {status === "reconnecting" && "Connection lost. Reconnecting…"}
             {status === "replaced" && (
               <>

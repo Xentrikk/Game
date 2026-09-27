@@ -70,10 +70,12 @@ export interface PublicProfile {
 }
 
 export type PresenceStatus = "online" | "away" | "dnd" | "offline";
+export type PresenceLocation =
+  { kind: "town"; roomId: string } | { kind: "home"; roomId: string; ownerId: string };
 export interface Presence {
   status: PresenceStatus;
   /** Where they are, when they're in the world and share it with friends. */
-  location: { kind: "town"; roomId: string } | null;
+  location: PresenceLocation | null;
 }
 
 export type Relationship = "self" | "friends" | "outgoing" | "incoming" | "none" | "blocked";
@@ -114,6 +116,7 @@ export const settingsSchema = z.object({
       dm: z.boolean().default(true),
       group: z.boolean().default(true),
       friendRequest: z.boolean().default(true),
+      letter: z.boolean().default(true),
     })
     .default({}),
   quietHours: z
@@ -199,7 +202,12 @@ export type ServerEvent =
   | { type: "typing"; conversationId: string; userId: string }
   | { type: "conversation"; conversationId: string }
   | { type: "friends_changed" }
-  | { type: "presence"; userId: string; presence: Presence };
+  | { type: "presence"; userId: string; presence: Presence }
+  | { type: "trade_updated"; tradeId: string }
+  | { type: "letter"; letterId: string }
+  | { type: "wallet_changed"; balance: number }
+  | { type: "inventory_changed" }
+  | { type: "home_changed"; ownerId: string };
 
 // ---------- World chat ----------
 

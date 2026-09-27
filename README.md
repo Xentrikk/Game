@@ -2,7 +2,7 @@
 
 A cozy top-down pixel world where your friends live: a Game Boy–era–style alternative to texting and social media. The full product spec is in [`PROMPT.md`](PROMPT.md). The build goes phase by phase (Section 13 of the spec).
 
-**Status:** Phases 1–3 are done: accounts and characters, the world, and friends and talking. See [`docs/phase-1.md`](docs/phase-1.md), [`docs/phase-2.md`](docs/phase-2.md) and [`docs/phase-3.md`](docs/phase-3.md).
+**Status:** Phases 1–4 are done: accounts and characters, the world, friends and talking, and homes, inventory and trading. See [`docs/phase-1.md`](docs/phase-1.md), [`docs/phase-2.md`](docs/phase-2.md), [`docs/phase-3.md`](docs/phase-3.md) and [`docs/phase-4.md`](docs/phase-4.md).
 
 ## What's here
 
@@ -48,6 +48,8 @@ In the world, press **T** (or Say) to talk to people within 6 tiles, **Emote** f
 
 To try push notifications locally, generate keys with `npx web-push generate-vapid-keys`, put them in `.env` (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`), then choose Settings → Turn on notifications.
 
+From the home screen, **Inventory** shows your coins and items and lets you claim the daily gift; **Shops** (café, boutique, general store) sell items; **Letters** sends and receives mail with attached items and coins; **My Home** is your own private space (Manage home sets who can visit and lets you place furniture), and a friend's profile card has **Trade** and **Visit home**.
+
 ## Offline preview
 
 `pnpm --filter @hearth/client build:demo` builds a single self-contained HTML file (`apps/client/dist-demo/demo.html`) that needs no server. You make a character and walk the Town Square with a few bot villagers, using the same movement rules as the real server. It's for sharing a quick look at the game. Sign-up, friends and chat need the real server.
@@ -83,4 +85,4 @@ The native projects aren't committed yet (see `docs/decisions.md`).
 
 ## Art
 
-Character sprites (`apps/client/public/sprites`, `pnpm sprites`) and the Town Square tileset and map (`apps/client/public/tiles/town.png`, `packages/shared/maps/town.json`, `pnpm --filter @hearth/client town`) are **generated placeholders**. Real art can replace them file for file, and the map opens in [Tiled](https://www.mapeditor.org/). See [`docs/art-pipeline.md`](docs/art-pipeline.md). `pnpm --filter @hearth/client exec tsx scripts/preview-town.ts` renders the whole map to a PNG.
+Character sprites (`apps/client/public/sprites`, `pnpm sprites`), the Town Square tileset and map (`apps/client/public/tiles/town.png`, `packages/shared/maps/town.json`, `pnpm --filter @hearth/client town`), a home interior (`apps/client/public/tiles/home.png`, `packages/shared/maps/home.json`, `pnpm --filter @hearth/client home`), and the item icon sheet (`apps/client/public/items/items.png`, `pnpm --filter @hearth/client items`) are **generated placeholders**. Real art can replace them file for file, and the maps open in [Tiled](https://www.mapeditor.org/). See [`docs/art-pipeline.md`](docs/art-pipeline.md). `pnpm --filter @hearth/client exec tsx scripts/preview-town.ts` renders the whole map to a PNG.

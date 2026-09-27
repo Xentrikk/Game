@@ -7,7 +7,7 @@ import "./demo.css";
 import { DemoApp } from "./DemoApp";
 
 // Every sprite sheet and tile image is embedded in the page as a data URL, so the demo is one file.
-const embedded = import.meta.glob<string>("../../public/{sprites,tiles}/**/*.png", {
+const embedded = import.meta.glob<string>("../../public/{sprites,tiles,items}/**/*.png", {
   eager: true,
   query: "?inline",
   import: "default",

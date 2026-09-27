@@ -42,7 +42,7 @@ describe("settings", () => {
       readReceipts: true,
       presence: "auto",
       shareLocation: true,
-      notifications: { dm: true, group: true, friendRequest: true },
+      notifications: { dm: true, group: true, friendRequest: true, letter: true },
       quietHours: { enabled: false, start: "22:00", end: "07:00" },
       timeZone: "UTC",
     });

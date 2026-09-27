@@ -1,5 +1,5 @@
 import { Client, getStateCallbacks, type Room } from "@colyseus/sdk";
-import { TOWN_ROOM, TownState, type PlayerState } from "@hearth/shared";
+import { HOME_ROOM, TOWN_ROOM, TownState, type PlayerState } from "@hearth/shared";
 import { api } from "../api";
 import { env } from "../env";
 import { supabase } from "../supabase";
@@ -40,6 +40,15 @@ export async function joinTown(opts: { roomId?: string } = {}): Promise<WorldCon
     }
   }
   return colyseusConnection((await client.joinOrCreate(TOWN_ROOM, {}, TownState)) as TownRoom);
+}
+
+/** Joins a private home: your own, or (if they let you in) a friend's. */
+export async function joinHome(ownerId: string): Promise<WorldConnection> {
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) throw new Error("Please sign in again.");
+  const client = new Client(gameUrl());
+  client.auth.token = data.session.access_token;
+  return colyseusConnection((await client.joinOrCreate(HOME_ROOM, { ownerId }, TownState)) as TownRoom);
 }
 
 function colyseusConnection(room: TownRoom): WorldConnection {

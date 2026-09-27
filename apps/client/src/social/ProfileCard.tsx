@@ -10,12 +10,16 @@ interface Props {
   onClose: () => void;
   /** Opens the chat panel on a conversation. */
   onOpenChat: (conversationId: string) => void;
+  /** Opens (or starts) a trade with this friend. */
+  onOpenTrade?: (tradeId: string) => void;
+  /** Leaves wherever you are and visits this friend's home. */
+  onVisitHome?: (ownerId: string) => void;
   /** In the world, Say lines are reported through the room (with the recent conversation attached). */
   reportSay?: (reason: ReportReason, note: string) => Promise<unknown>;
 }
 
 /** Someone's card: their character and bio, and what you can do (add, message, mute, block, report). */
-export function ProfileCard({ handle, onClose, onOpenChat, reportSay }: Props) {
+export function ProfileCard({ handle, onClose, onOpenChat, onOpenTrade, onVisitHome, reportSay }: Props) {
   const store = useSocialStore();
   const friends = useSocial((s) => s.friends);
   const [data, setData] = useState<{ profile: PublicProfile; relationship: Relationship } | null>(null);
@@ -186,6 +190,26 @@ export function ProfileCard({ handle, onClose, onOpenChat, reportSay }: Props) {
               {muted ? "Unmute" : "Mute"}
             </button>
           </li>
+          {relationship === "friends" && onVisitHome && (
+            <li>
+              <button className="menu-item" onClick={() => onVisitHome(profile.id)}>
+                Visit home
+              </button>
+            </li>
+          )}
+          {relationship === "friends" && onOpenTrade && (
+            <li>
+              <button
+                className="menu-item"
+                onClick={act(async () => {
+                  const trade = await api.openTrade(profile.id);
+                  onOpenTrade(trade.id);
+                })}
+              >
+                Trade
+              </button>
+            </li>
+          )}
           {relationship === "friends" && (
             <li>
               <button

@@ -1,0 +1,40 @@
+[
+  {
+    "id": "plain_paper",
+    "name": "Plain Paper",
+    "category": "stationery",
+    "rarity": "common",
+    "tradeable": false,
+    "stackable": false,
+    "maxStack": 1,
+    "sprite": "plain_paper",
+    "description": "Simple, honest paper. Everyone starts with this one.",
+    "price": 0
+  },
+  {
+    "id": "star_stationery",
+    "name": "Starry Stationery",
+    "category": "stationery",
+    "rarity": "uncommon",
+    "tradeable": true,
+    "stackable": false,
+    "maxStack": 1,
+    "sprite": "star_stationery",
+    "description": "Little stars along the border.",
+    "price": 45,
+    "shop": "general"
+  },
+  {
+    "id": "flower_stationery",
+    "name": "Pressed Flower Stationery",
+    "category": "stationery",
+    "rarity": "uncommon",
+    "tradeable": true,
+    "stackable": false,
+    "maxStack": 1,
+    "sprite": "flower_stationery",
+    "description": "Real petals, pressed flat and printed.",
+    "price": 45,
+    "shop": "general"
+  }
+]

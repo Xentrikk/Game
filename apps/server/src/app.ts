@@ -24,6 +24,7 @@ import { parse } from "./http";
 import type { AuthApi } from "./gotrue";
 import type { OtpService } from "./otp";
 import { chatRoutes } from "./chat/routes";
+import { economyRoutes, type EconomyDeps } from "./economy/routes";
 import { eventRoutes } from "./events";
 import { HandleTakenError, type Repo } from "./repo";
 import { socialRoutes, type SocialDeps } from "./social/routes";
@@ -39,6 +40,8 @@ export interface AppDeps {
   today?: () => string;
   /** Friends, chat and live events (Phase 3). Optional so account-only tests can run without a database. */
   social?: Omit<SocialDeps, "verifyToken">;
+  /** Homes, inventory, coins, letters and trading (Phase 4). Optional, same reason as `social`. */
+  economy?: Omit<EconomyDeps, "verifyToken">;
 }
 
 export function createApp(deps: AppDeps) {
@@ -198,6 +201,9 @@ export function createApp(deps: AppDeps) {
     app.use(socialRoutes(social));
     app.use(chatRoutes(social));
     app.use(eventRoutes(social));
+  }
+  if (deps.economy) {
+    app.use(economyRoutes({ ...deps.economy, verifyToken: deps.verifyToken }));
   }
 
   app.use("/api", (_req, _res, next) => next(new HttpError(404, "not_found", "Not found.")));

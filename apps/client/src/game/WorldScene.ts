@@ -15,6 +15,7 @@ import {
   type TiledMap,
   type WorldMap,
 } from "@hearth/shared";
+import home from "@hearth/shared/maps/home.json";
 import town from "@hearth/shared/maps/town.json";
 import { assetUrl } from "../assets";
 import Phaser from "phaser";
@@ -52,10 +53,19 @@ function isTyping(): boolean {
   );
 }
 
+export type WorldKind = "town" | "home";
+
+const MAPS: Record<WorldKind, { data: TiledMap; tileKey: string; tilesPath: string; mapKey: string }> = {
+  town: { data: town as TiledMap, tileKey: "town-tiles", tilesPath: "tiles/town.png", mapKey: "town" },
+  home: { data: home as TiledMap, tileKey: "home-tiles", tilesPath: "tiles/home.png", mapKey: "home" },
+};
+
 export interface WorldSceneData {
   conn: WorldConnection;
   ui: WorldUi;
   pocket: boolean;
+  /** Which place this is: the Town Square, or a private home. Defaults to "town". */
+  kind?: WorldKind;
   /** Dev/testing override for the day/night tint. */
   hourOverride?: number;
 }
@@ -92,6 +102,7 @@ const pixelPos = (tile: { x: number; y: number }) => ({
 export class WorldScene extends Phaser.Scene {
   private conn!: WorldConnection;
   private ui!: WorldUi;
+  private kind: WorldKind = "town";
   private map!: WorldMap;
   private self?: LocalPlayer;
   private others = new Map<string, Avatar>();
@@ -112,18 +123,21 @@ export class WorldScene extends Phaser.Scene {
     this.conn = data.conn;
     this.ui = data.ui;
     this.pocket = data.pocket;
+    this.kind = data.kind ?? "town";
     this.hourOverride = data.hourOverride;
-    this.map = parseMap(town as TiledMap);
+    this.map = parseMap(MAPS[this.kind].data);
   }
 
   preload() {
-    this.load.image("town-tiles", assetUrl("tiles/town.png"));
-    this.cache.tilemap.add("town", { format: Phaser.Tilemaps.Formats.TILED_JSON, data: town });
+    const { tileKey, tilesPath, mapKey, data } = MAPS[this.kind];
+    this.load.image(tileKey, assetUrl(tilesPath));
+    this.cache.tilemap.add(mapKey, { format: Phaser.Tilemaps.Formats.TILED_JSON, data });
   }
 
   create() {
-    const tilemap = this.make.tilemap({ key: "town" });
-    const tileset = tilemap.addTilesetImage("town", "town-tiles")!;
+    const { tileKey, mapKey } = MAPS[this.kind];
+    const tilemap = this.make.tilemap({ key: mapKey });
+    const tileset = tilemap.addTilesetImage(mapKey, tileKey)!;
     tilemap.createLayer("ground", tileset)!.setDepth(0);
     tilemap.createLayer("decor", tileset)!.setDepth(1);
     tilemap.createLayer("overhead", tileset)!.setDepth(DEPTH_OVERHEAD);

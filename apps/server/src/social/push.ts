@@ -4,7 +4,7 @@ import type { Sql } from "../db";
 import type { PresenceService } from "./presence";
 import type { SocialRepo } from "./socialRepo";
 
-export type PushKind = "dm" | "group" | "friendRequest";
+export type PushKind = "dm" | "group" | "friendRequest" | "letter";
 
 export interface PushPayload {
   title: string;

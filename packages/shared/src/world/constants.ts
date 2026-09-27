@@ -10,6 +10,9 @@ export const STEP_MS_RUN = 125;
 
 export const TOWN_ROOM = "town";
 export const TOWN_MAX_PLAYERS = 50;
+export const HOME_ROOM = "home";
+/** A home is meant for a small hangout, not a crowd. */
+export const HOME_MAX_PLAYERS = 8;
 /** Seconds a dropped player keeps their spot while reconnecting. */
 export const RECONNECT_SECONDS = 30;
 /** Server patch interval (20 Hz). */

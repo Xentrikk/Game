@@ -1,4 +1,4 @@
-import type { Presence, Settings } from "@hearth/shared";
+import type { Presence, PresenceLocation, Settings } from "@hearth/shared";
 import { userChannel, type EventBus } from "../bus";
 import type { Store } from "../store";
 import type { SocialRepo } from "./socialRepo";
@@ -10,7 +10,7 @@ interface PresenceRecord {
   /** Open event streams (app tabs/devices) for this user. */
   conns: number;
   away: boolean;
-  location: { roomId: string } | null;
+  location: PresenceLocation | null;
 }
 
 const EMPTY: PresenceRecord = { conns: 0, away: false, location: null };
@@ -19,8 +19,7 @@ const EMPTY: PresenceRecord = { conns: 0, away: false, location: null };
 export function visiblePresence(r: PresenceRecord, s: Settings): Presence {
   const online = r.conns > 0 || !!r.location;
   if (!online || s.presence === "invisible") return { status: "offline", location: null };
-  const location =
-    s.shareLocation && r.location ? { kind: "town" as const, roomId: r.location.roomId } : null;
+  const location = s.shareLocation ? r.location : null;
   if (s.presence === "dnd") return { status: "dnd", location };
   return { status: r.away ? "away" : "online", location };
 }
@@ -97,7 +96,7 @@ export class PresenceService {
     return this.update(userId, (r) => void (r.away = away));
   }
 
-  setLocation(userId: string, location: { roomId: string } | null) {
+  setLocation(userId: string, location: PresenceLocation | null) {
     return this.update(userId, (r) => void (r.location = location));
   }
 }

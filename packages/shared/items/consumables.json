@@ -1,0 +1,41 @@
+[
+  {
+    "id": "iced_tea",
+    "name": "Iced Tea",
+    "category": "consumables",
+    "rarity": "common",
+    "tradeable": true,
+    "stackable": true,
+    "maxStack": 20,
+    "sprite": "iced_tea",
+    "description": "Cold, sweet, and a little too much sugar.",
+    "price": 10,
+    "shop": "cafe"
+  },
+  {
+    "id": "berry_scone",
+    "name": "Berry Scone",
+    "category": "consumables",
+    "rarity": "common",
+    "tradeable": true,
+    "stackable": true,
+    "maxStack": 20,
+    "sprite": "berry_scone",
+    "description": "Fresh from the café oven.",
+    "price": 15,
+    "shop": "cafe"
+  },
+  {
+    "id": "sparkler",
+    "name": "Sparkler",
+    "category": "consumables",
+    "rarity": "uncommon",
+    "tradeable": true,
+    "stackable": true,
+    "maxStack": 20,
+    "sprite": "sparkler",
+    "description": "Light it and wave it around. Careful.",
+    "price": 25,
+    "shop": "general"
+  }
+]

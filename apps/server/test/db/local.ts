@@ -1,10 +1,15 @@
 import { PRIVACY_VERSION, TOS_VERSION, randomAppearance, type ServerEvent } from "@hearth/shared";
 import { createClient } from "@supabase/supabase-js";
 import type { AddressInfo } from "node:net";
+import postgres from "postgres";
 import webpush from "web-push";
 import { LocalBus } from "../../src/bus";
 import { ChatRepo } from "../../src/chat/chatRepo";
-import { connectDb } from "../../src/db";
+import { connectDb, type Sql } from "../../src/db";
+import { EconomyRepo } from "../../src/economy/economyRepo";
+import { HomeRepo } from "../../src/economy/homeRepo";
+import { LetterRepo } from "../../src/economy/letterRepo";
+import { TradeRepo } from "../../src/economy/tradeRepo";
 import { PresenceService } from "../../src/social/presence";
 import { PushService } from "../../src/social/push";
 import { SocialRepo } from "../../src/social/socialRepo";
@@ -73,10 +78,32 @@ export function makeSocial() {
   return { sql, store, bus, social, chat, presence, push, pushed, appUrl: "http://localhost:5173" };
 }
 
-export function makeLocalApp(social?: ReturnType<typeof makeSocial>) {
+/** Homes, inventory, coins, letters and trading, reusing the social bundle's connection and services. */
+export function makeEconomy(social: ReturnType<typeof makeSocial>, random?: () => number) {
+  const economy = new EconomyRepo(social.sql, random);
+  const homes = new HomeRepo(social.sql);
+  const letters = new LetterRepo(social.sql);
+  const trades = new TradeRepo(social.sql);
+  return {
+    economy,
+    homes,
+    letters,
+    trades,
+    social: social.social,
+    presence: social.presence,
+    push: social.push,
+    bus: social.bus,
+  };
+}
+
+export function makeLocalApp(
+  social?: ReturnType<typeof makeSocial>,
+  economy?: ReturnType<typeof makeEconomy>,
+) {
   const auth = new GoTrueClient(SUPABASE_URL, ANON_KEY, SERVICE_KEY);
   return createApp({
     social,
+    economy,
     otp: new OtpService(new MemoryStore(), auth, noCaptcha, "http://localhost:5173/auth/callback"),
     auth,
     repo: new SupabaseRepo(SUPABASE_URL, SERVICE_KEY),
@@ -84,6 +111,34 @@ export function makeLocalApp(social?: ReturnType<typeof makeSocial>) {
     corsOrigins: [],
     trustProxy: 0,
   });
+}
+
+/** A raw connection for tests that need to reach into Postgres directly (e.g. killing a backend mid-transaction). */
+export function rawSql(): Sql {
+  return connectDb(DATABASE_URL);
+}
+
+/**
+ * A pool capped at exactly one physical connection, so `pg_backend_pid()` names the connection every
+ * later query on it runs on too — needed to terminate a specific in-flight query from another connection.
+ * If that backend is killed, the next query sent to this pool transparently opens a fresh one.
+ */
+export function soloSql(): Sql {
+  return postgres(DATABASE_URL, { max: 1, idle_timeout: 30, transform: { undefined: null } });
+}
+
+/** Test-only fixtures: grants coins/items directly, bypassing the shop, so tests can set up starting state. */
+export async function grantItem(
+  sql: Sql,
+  ownerId: string,
+  itemId: string,
+  quantity: number,
+  stackable: boolean,
+) {
+  await sql`select public.grant_item(${ownerId}, ${itemId}, ${quantity}, ${stackable})`;
+}
+export async function giveCoins(sql: Sql, userId: string, amount: number) {
+  await sql`select public.adjust_coins(${userId}, ${amount}, 'admin', null)`;
 }
 
 /** A client acting as the signed-in user, to test RLS directly. */

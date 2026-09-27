@@ -12,6 +12,8 @@
     "test:e2e": "playwright test",
     "sprites": "tsx scripts/generate-sprites.ts",
     "town": "tsx scripts/generate-town.ts",
+    "home": "tsx scripts/generate-home.ts",
+    "items": "tsx scripts/generate-items.ts",
     "build:demo": "vite build --config vite.demo.config.ts"
   },
   "dependencies": {
