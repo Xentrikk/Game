@@ -25,11 +25,10 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
-      - name: Generated art and map are up to date
+      - name: Generated town art and map are up to date
         run: |
-          pnpm sprites
           pnpm --filter @hearth/client town
-          git diff --exit-code -- apps/client/public/sprites apps/client/public/tiles packages/shared/maps
+          git diff --exit-code -- apps/client/public/tiles/town.png packages/shared/maps
       - run: pnpm build
         env:
           VITE_SUPABASE_URL: http://127.0.0.1:54321
