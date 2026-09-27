@@ -1,10 +1,12 @@
 # Art pipeline
 
-Every visual asset — character sprites, the Town Square tileset, the home interior tileset, and item icons — started as a **generated placeholder**: code drew it, not an artist. Character sprites, the home interior tileset and item icons have since been replaced with AI-generated art (see below); the Town Square tileset is still the generated placeholder, pending a better replacement. Any file can be replaced with a hand-drawn or AI-generated one in the same format (size, grid, key colors where noted) and nothing else in the game needs to change; just stop re-running the generator that made it, or (for town.png) CI's "generated town art is up to date" check will overwrite it the next time someone runs the generator.
+Every visual asset — character sprites, the Town Square tileset, the home interior tileset, and item icons — started as a **generated placeholder**: code drew it, not an artist. The home interior tileset and item icons have since been replaced with AI-generated art (see below); character sprites and the Town Square tileset are still the generated placeholders, pending better replacements. Any file can be replaced with a hand-drawn or AI-generated one in the same format (size, grid, key colors where noted) and nothing else in the game needs to change; just stop re-running the generator that made it, or (for sprites and town.png) CI's "generated art is up to date" check will overwrite it the next time someone runs the generator.
 
 ## Character sprites
 
-The character is built at runtime from layered sprite sheets that are recolored per player. The sheets in `apps/client/public/sprites` are now AI-generated art (all 121 files verified to keep the exact key-color values below and the 64×96/16×24 frame format). `apps/client/scripts/generate-sprites.ts` still exists and produces placeholder sheets in the same format, but CI no longer regenerates or diffs against it — don't run `pnpm sprites` unless you intend to overwrite the current art.
+The character is built at runtime from layered sprite sheets that are recolored per player. The sheets in `apps/client/public/sprites` are made by `apps/client/scripts/generate-sprites.ts`.
+
+An AI-regenerated set was tried and rejected (see `docs/decisions.md`). Every sheet kept the right size and key colors, but each layer was drawn with its own thick outline around its whole shape. Because layers are stacked (hair and tops sit on top of the body), those outlines landed on top of the face and body, and every composed character came out as a near-black silhouette. **Only outline a layer's outer edge where it meets transparency, never across an area another layer shows through**, and always check the stacked result with `preview-sprites.ts` below, not individual sheets on their own.
 
 ### Sheet format
 
