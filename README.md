@@ -67,7 +67,7 @@ Load test (needs `pnpm dev` running): `pnpm loadtest` runs 50 bot players for 30
 
 To use a preinstalled Chromium for Playwright, set `PW_CHROMIUM_PATH=/path/to/chrome`. Otherwise run `pnpm --filter @hearth/client exec playwright install chromium`. Set `SCREENSHOT_DIR=/some/dir` to save a screenshot of every onboarding screen during the e2e run.
 
-CI (`.github/workflows/ci.yml`) runs all of these, plus a dependency audit and a check that the sprite sheets are up to date.
+CI (`.github/workflows/ci.yml`) runs all of these, plus a dependency audit and a check that the generated Town Square art and maps are up to date.
 
 ## Environment variables
 
@@ -85,6 +85,6 @@ The native projects aren't committed yet (see `docs/decisions.md`).
 
 ## Art
 
-A home interior (`apps/client/public/tiles/home.png`, `packages/shared/maps/home.json`) and the item icon sheet (`apps/client/public/items/items.png`) are AI-generated art. Character sprites (`apps/client/public/sprites`, `pnpm sprites`) and the Town Square tileset and map (`apps/client/public/tiles/town.png`, `packages/shared/maps/town.json`, `pnpm --filter @hearth/client town`) are still **generated placeholders** — code draws them, not an artist — pending replacements that pass a visual check (see `docs/decisions.md`). Real art can replace any of these file for file, and the maps open in [Tiled](https://www.mapeditor.org/). See [`docs/art-pipeline.md`](docs/art-pipeline.md). `pnpm --filter @hearth/client exec tsx scripts/preview-town.ts` (and `preview-home.ts`) render a map to a PNG for review.
+Character sprites (`apps/client/public/sprites`, AI-shaded versions of the generated sheets — don't re-run `pnpm sprites` over them), a home interior (`apps/client/public/tiles/home.png`, `packages/shared/maps/home.json`) and the item icon sheet (`apps/client/public/items/items.png`) are AI-generated art. The Town Square tileset and map (`apps/client/public/tiles/town.png`, `packages/shared/maps/town.json`, `pnpm --filter @hearth/client town`) is still a **generated placeholder** — code draws it, not an artist — pending a replacement that passes a visual check (see `docs/decisions.md`). Real art can replace any of these file for file, and the maps open in [Tiled](https://www.mapeditor.org/). See [`docs/art-pipeline.md`](docs/art-pipeline.md). `pnpm --filter @hearth/client exec tsx scripts/preview-town.ts` (and `preview-home.ts`) render a map to a PNG for review.
 
-The town generator shades every surface from a multi-tone color ramp with ordered dithering and a consistent light direction, plus soft grounding shadows — more depth than a flat fill, still placeholder-quality code-generated art (see `docs/decisions.md`). Character sprites use a key-color system (recolored per player at runtime) and haven't had the same pass yet.
+The town generator shades every surface from a multi-tone color ramp with ordered dithering and a consistent light direction, plus soft grounding shadows — more depth than a flat fill, still placeholder-quality code-generated art (see `docs/decisions.md`). Character sprites use a key-color system (recolored per player at runtime); their shading only ever swaps a key color for its own shade key, so recoloring still works.

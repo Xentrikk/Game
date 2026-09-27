@@ -1,12 +1,12 @@
 # Art pipeline
 
-Every visual asset — character sprites, the Town Square tileset, the home interior tileset, and item icons — started as a **generated placeholder**: code drew it, not an artist. The home interior tileset and item icons have since been replaced with AI-generated art (see below); character sprites and the Town Square tileset are still the generated placeholders, pending better replacements. Any file can be replaced with a hand-drawn or AI-generated one in the same format (size, grid, key colors where noted) and nothing else in the game needs to change; just stop re-running the generator that made it, or (for sprites and town.png) CI's "generated art is up to date" check will overwrite it the next time someone runs the generator.
+Every visual asset — character sprites, the Town Square tileset, the home interior tileset, and item icons — started as a **generated placeholder**: code drew it, not an artist. Character sprites, the home interior tileset and item icons have since been replaced with AI-generated art (see below); the Town Square tileset is still the generated placeholder, pending a better replacement. Any file can be replaced with a hand-drawn or AI-generated one in the same format (size, grid, key colors where noted) and nothing else in the game needs to change; just stop re-running the generator that made it, or (for town.png) CI's "generated town art is up to date" check will overwrite it the next time someone runs the generator.
 
 ## Character sprites
 
-The character is built at runtime from layered sprite sheets that are recolored per player. The sheets in `apps/client/public/sprites` are made by `apps/client/scripts/generate-sprites.ts`.
+The character is built at runtime from layered sprite sheets that are recolored per player. The sheets in `apps/client/public/sprites` are AI-shaded versions of the ones `apps/client/scripts/generate-sprites.ts` makes: same silhouettes and outlines, with dithered shading added inside (each shaded pixel moved from a key color to its own shade key, e.g. slot0 → slot0 shade, so recoloring still works). CI no longer regenerates or diffs them — **don't run `pnpm sprites`** unless you mean to overwrite them with the flat placeholders.
 
-An AI-regenerated set was tried and rejected (see `docs/decisions.md`). Every sheet kept the right size and key colors, but each layer was drawn with its own thick outline around its whole shape. Because layers are stacked (hair and tops sit on top of the body), those outlines landed on top of the face and body, and every composed character came out as a near-black silhouette. **Only outline a layer's outer edge where it meets transparency, never across an area another layer shows through**, and always check the stacked result with `preview-sprites.ts` below, not individual sheets on their own.
+The AI tool's first output also drew a thick outline around every piece of every layer. Because layers are stacked (hair and tops sit on top of the body), those outlines covered the face and body, and every composed character came out as a near-black silhouette, even though each sheet passed the size and key-color checks on its own. That stroke was removed before the sheets were committed (see `docs/decisions.md`). **Only outline a layer's outer edge where it meets transparency, never across an area another layer shows through**, and always check the stacked result with `preview-sprites.ts` below, not individual sheets on their own.
 
 ### Sheet format
 
@@ -52,7 +52,7 @@ pnpm --filter @hearth/client exec tsx scripts/preview-sprites.ts 6 7 preview.png
 pnpm --filter @hearth/client test                                                 # every option has a sheet
 ```
 
-If you replace a generated sheet with hand-drawn art, remove that option from the generator (or stop running it). Otherwise CI's "sprites up to date" check will flag the difference.
+The committed sheets are no longer the generator's output, so `pnpm sprites` would overwrite the shading; CI doesn't run it. If you add a new appearance option, generate just that option's sheets and check the composited preview.
 
 **Current style note:** the placeholder sheets are flat-shaded (2 tones per recolorable area). Hand-drawn or AI-generated replacements can go richer — more shading steps, texture, a consistent top-left light source — the same way the tile art below was pushed further; see `docs/decisions.md` (post–Phase 4 entries) for the exact technique (ramp shading + ordered dithering) if you want the sprites to match. The one hard constraint is the key-color table above: whatever detail you add, recolorable pixels must still land on one of those exact key RGB values so the runtime recoloring keeps working.
 
