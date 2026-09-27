@@ -61,36 +61,70 @@ function blank(): Tile {
   return Array.from({ length: T }, () => Array<Px>(T).fill(null));
 }
 
-/** Fills `tile` wherever `inside(x,y)` is true, shading by a light direction, outlining the silhouette. */
+// Ordered dithering between ramp bands, same technique as scripts/generate-town.ts, so a small
+// 16×16 icon still reads as a smooth gradient instead of a hard 3-color cutoff.
+const BAYER4 = [
+  [0, 8, 2, 10],
+  [12, 4, 14, 6],
+  [3, 11, 1, 9],
+  [15, 7, 13, 5],
+];
+const ditherThreshold = (x: number, y: number) => (BAYER4[y & 3]![x & 3]! + 0.5) / 16;
+function rampAt(ramp: readonly Px[], level: number, x: number, y: number): Px {
+  const t = Math.max(0, Math.min(0.9999, level)) * (ramp.length - 1);
+  const lo = Math.floor(t);
+  const hi = Math.min(ramp.length - 1, lo + 1);
+  return t - lo > ditherThreshold(x, y) ? ramp[hi]! : ramp[lo]!;
+}
+
+const OUTLINE: Px = [26, 20, 32];
+
+/** Fills `tile` wherever `inside(x,y)` is true with a 5-tone lit ramp, then outlines and rim-lights it. */
 function shape(inside: (x: number, y: number) => boolean, hue: number): Tile {
   const t = blank();
-  const [baseR, baseG, baseB] = hsl(hue, 0.55, 0.55);
-  const [darkR, darkG, darkB] = hsl(hue, 0.55, 0.32);
-  const [liteR, liteG, liteB] = hsl(hue, 0.5, 0.72);
+  const ramp: Px[] = [
+    hsl(hue, 0.55, 0.22),
+    hsl(hue, 0.55, 0.36),
+    hsl(hue, 0.55, 0.52),
+    hsl(hue, 0.5, 0.68),
+    hsl(hue, 0.45, 0.82),
+  ];
+  const rim = hsl(hue, 0.4, 0.88); // a soft, same-hue highlight, not a stark white sticker outline
   for (let y = 0; y < T; y++) {
     for (let x = 0; x < T; x++) {
       if (!inside(x, y)) continue;
-      const lightness = (8 - x - y) / 10 + hash(x, y, 3) * 0.3;
-      t[y]![x] =
-        lightness > 0.35
-          ? [liteR, liteG, liteB]
-          : lightness < -0.35
-            ? [darkR, darkG, darkB]
-            : [baseR, baseG, baseB];
+      const level = 0.5 + (8 - x - y) / 16 + (hash(x, y, 3) - 0.5) * 0.12;
+      t[y]![x] = rampAt(ramp, level, x, y);
     }
   }
-  // Outline: any transparent pixel next to a filled one becomes a dark edge.
   const out = t.map((row) => [...row]);
   for (let y = 0; y < T; y++) {
     for (let x = 0; x < T; x++) {
       if (t[y]![x]) continue;
-      const neighbor = [
+      const outer = [
         [x - 1, y],
         [x + 1, y],
         [x, y - 1],
         [x, y + 1],
       ].some(([nx, ny]) => t[ny!]?.[nx!]);
-      if (neighbor) out[y]![x] = [26, 20, 32];
+      if (!outer) continue;
+      // A sparse rim light on the top/left-facing edge (catching the same light as the shading), a
+      // dark outline everywhere else — the same "painted cel" trick used on the town tileset's props.
+      const litEdge = (t[y + 1]?.[x] || t[y]?.[x + 1]) && hash(x, y, 55) < 0.5;
+      out[y]![x] = litEdge ? rim : OUTLINE;
+    }
+  }
+  return out;
+}
+
+/** A soft dithered shadow on the last row or two, so the icon reads as sitting on a surface. */
+function groundShadow(t: Tile): Tile {
+  const out = t.map((row) => [...row]);
+  for (const y of [T - 2, T - 1]) {
+    for (let x = 0; x < T; x++) {
+      if (out[y]![x]) continue;
+      const hasAbove = out[y - 1]?.[x] || out[y - 1]?.[x - 1] || out[y - 1]?.[x + 1];
+      if (hasAbove && hash(x, y, 44) < (y === T - 1 ? 0.35 : 0.6)) out[y]![x] = [20, 16, 26];
     }
   }
   return out;
@@ -137,8 +171,9 @@ function sparkle(t: Tile): Tile {
 
 const items = [...ITEM_DEFINITIONS.values()];
 const tiles: Tile[] = items.map((item) => {
-  const t = SHAPES[item.category](hueOf(item.id));
-  return item.rarity === "rare" ? sparkle(t) : t;
+  let t = groundShadow(SHAPES[item.category](hueOf(item.id)));
+  if (item.rarity === "rare") t = sparkle(t);
+  return t;
 });
 
 const rows = Math.ceil(tiles.length / COLS);

@@ -3,6 +3,12 @@
  * (packages/shared/maps/town.json, Tiled JSON with an embedded tileset).
  * The map can be opened and edited in Tiled; after hand-editing, stop regenerating it.
  *
+ * Ground, trees, roofs and walls are built from multi-tone color ramps with ordered dithering
+ * between bands and a consistent top-left light source, instead of flat fills — the same idea
+ * (limited palette, hand-tuned shading, painted-looking gradients) that gives 16-bit-era pixel art
+ * its depth, just drawn by code. Small hand-drawn props (bench, sign, pot, fence, bush, rock, lamp,
+ * notice board) keep their original simpler shading; see docs/decisions.md.
+ *
  * Run: pnpm --filter @hearth/client town
  */
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -16,39 +22,77 @@ const MAP_JSON = join(root, "../../../packages/shared/maps/town.json");
 const T = 16;
 const COLS = 8;
 
-// ---------- Palette: at most 32 colors for the whole area (PROMPT.md Section 3) ----------
+// ---------- Palette: at most 64 colors for the whole area ----------
+// Object props (BUSH, ROCK, FENCE, SIGN, POT, bench, lamp, noticeBoard) are authored as ASCII art,
+// one character per pixel, so their keys stay single characters. Everything else is plotted directly
+// pixel by pixel, so it can use descriptive multi-character keys — mostly light/dark extremes added
+// on top of the original single-letter tone, so each surface reads as a 4-6 step ramp instead of flat.
 const PAL: Record<string, string> = {
+  // grass ramp: g0 (deep shadow) < d < h < g (base) < l < g5 (highlight)
+  g0: "#223a1c",
   g: "#5a9a48",
   h: "#4e8a3e",
   l: "#78b858",
-  d: "#3a6a30", // grass
+  d: "#3a6a30",
+  g5: "#9ed87e",
+  // path/dirt ramp: pd < q < p (base) < r < pl
+  pd: "#7a6238",
   p: "#c8a870",
   q: "#a88850",
-  r: "#e0c890", // path / sand
+  r: "#e0c890",
+  pl: "#f0dcae",
+  // stone ramp: sd < v < t < s (base) < u < sl
+  sd: "#34333e",
   s: "#b8b8c0",
   t: "#8a8a98",
   u: "#d8d8e0",
-  v: "#5a5a6a", // stone
+  v: "#5a5a6a",
+  sl: "#eef0f6",
+  // water ramp: wd < x < w (base) < y < wl
+  wd: "#163a6a",
   w: "#4a9ae8",
   x: "#2a6ac8",
-  y: "#a8d8f8", // water
+  y: "#a8d8f8",
+  wl: "#e8f4ff",
+  // wood/bark ramp: bd < c < b (base) < e < bl
+  bd: "#3a2410",
   b: "#8a5a2e",
   c: "#5a3a1e",
-  e: "#b87a40", // wood
+  e: "#b87a40",
+  bl: "#d89a5c",
+  // foliage ramp (canopy/bush), deeper and cooler than grass for contrast against the ground
+  le0: "#1c3a2a",
+  le1: "#2e5a3e",
+  le2: "#4a8a54",
+  le3: "#74b868",
+  le4: "#b8e896",
+  // roofs, each a 4-tone ramp: shadow < dark < base < highlight
+  Rd: "#5a1218",
   R: "#c83a3a",
   Q: "#8a2230",
+  Rl: "#e87868",
+  Ud: "#12184a",
   U: "#3a5ac8",
   V: "#22348a",
+  Ul: "#7a9af0",
+  Nd: "#12401e",
   N: "#3a9a6a",
-  M: "#226a44", // roofs
+  M: "#226a44",
+  Nl: "#7ad0a0",
+  // walls/plaster: Cd < C (base) < Cl, D is the timber trim
+  Cd: "#d8c098",
   C: "#f0e0c0",
-  D: "#c8b090", // walls
+  D: "#c8b090",
+  Cl: "#fff4e0",
+  // accents
   F: "#f08ac0",
+  Fb: "#6a8ae0",
   Y: "#f4d04a",
   X: "#f4f4f0",
-  K: "#1a1420", // flowers, white, outline
+  K: "#1a1420",
   P: "#8a5ae0",
-  O: "#c8b8f0", // portal
+  O: "#c8b8f0",
+  Og: "#e6ddfb",
 };
 export const PALETTE_SIZE = Object.keys(PAL).length;
 
@@ -101,14 +145,65 @@ function outline(tile: Tile): Tile {
   return out;
 }
 
+// ---------- Shading: ordered dithering between ramp bands, so gradients look painted rather than
+// randomly speckled. `level` is a continuous 0..1 position along a light→dark ramp. ----------
+const BAYER4 = [
+  [0, 8, 2, 10],
+  [12, 4, 14, 6],
+  [3, 11, 1, 9],
+  [15, 7, 13, 5],
+];
+const ditherThreshold = (x: number, y: number) => (BAYER4[y & 3]![x & 3]! + 0.5) / 16;
+
+/** Picks a color from a dark→light ramp for a continuous light level, dithering between bands. */
+function rampAt(ramp: readonly string[], level: number, x: number, y: number): string {
+  const t = Math.max(0, Math.min(0.9999, level)) * (ramp.length - 1);
+  const lo = Math.floor(t);
+  const hi = Math.min(ramp.length - 1, lo + 1);
+  return t - lo > ditherThreshold(x, y) ? ramp[hi]! : ramp[lo]!;
+}
+
+/** Soft, blotchy patch noise (block-averaged) plus fine dither grain, for painted-looking terrain. */
+function terrainLevel(x: number, y: number, seed: number, block = 3): number {
+  const patch = hash(Math.floor(x / block), Math.floor(y / block), seed);
+  const grain = hash(x, y, seed + 500) - 0.5;
+  return 0.5 + (patch - 0.5) * 0.7 + grain * 0.18;
+}
+
+const GRASS = ["g0", "d", "h", "g", "l", "g5"] as const;
+const PATH = ["pd", "q", "p", "r", "pl"] as const;
+const STONE = ["sd", "v", "t", "s", "u", "sl"] as const;
+const WATER = ["wd", "x", "w", "y", "wl"] as const;
+const WOOD = ["bd", "c", "b", "e", "bl"] as const;
+const LEAF = ["le0", "le1", "le2", "le3", "le4"] as const;
+const WALL = ["Cd", "C", "Cl"] as const;
+const ROOFS = {
+  Red: ["Rd", "Q", "R", "Rl"],
+  Blue: ["Ud", "V", "U", "Ul"],
+  Green: ["Nd", "M", "N", "Nl"],
+} as const;
+
+/** A soft drop shadow blob, so standing objects look grounded rather than pasted on. */
+function groundShadow(t: Tile, cx: number, cy: number, rx: number, ry: number) {
+  for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++)
+    for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+      if (x < 0 || y < 0 || x >= t[0]!.length || y >= t.length || t[y]![x]) continue;
+      const r = Math.hypot((x - cx) / rx, (y - cy) / ry);
+      if (r < 1 && hash(x, y, 999) > r * 0.6) t[y]![x] = "sd";
+    }
+}
+
 // ---------- Ground tiles ----------
 function grass(seed: number, tufts = false): Tile {
-  const t = fill("g");
+  const t = blank();
+  for (let y = 0; y < T; y++)
+    for (let x = 0; x < T; x++) t[y]![x] = rampAt(GRASS, terrainLevel(x, y, seed), x, y);
+  // Sparse blade highlights and shadow flecks on top of the patchwork base.
   for (let y = 0; y < T; y++)
     for (let x = 0; x < T; x++) {
-      const r = hash(x, y, seed);
-      if (r < 0.08) t[y]![x] = "h";
-      else if (r > 0.95) t[y]![x] = "l";
+      const r = hash(x, y, seed + 200);
+      if (r < 0.04) t[y]![x] = "g5";
+      else if (r > 0.97) t[y]![x] = "g0";
     }
   if (tufts)
     for (const [cx, cy] of [
@@ -144,36 +239,49 @@ function flowers(a: string, b: string, seed: number): Tile {
   return t;
 }
 
-function speckle(base: string, a: string, b: string, seed: number, pa = 0.1, pb = 0.06): Tile {
-  const t = fill(base);
+/** A dirt/sand path with a painterly patch base and a scattering of small pebbles. */
+function dirtPath(seed: number, ramp: readonly string[] = PATH, pebble = 0.05): Tile {
+  const t = blank();
+  for (let y = 0; y < T; y++)
+    for (let x = 0; x < T; x++) t[y]![x] = rampAt(ramp, terrainLevel(x, y, seed, 4), x, y);
   for (let y = 0; y < T; y++)
     for (let x = 0; x < T; x++) {
-      const r = hash(x, y, seed);
-      if (r < pa) t[y]![x] = a;
-      else if (r > 1 - pb) t[y]![x] = b;
+      if (hash(x, y, seed + 300) < pebble) t[y]![x] = ramp[ramp.length - 1]!;
     }
   return t;
 }
 
+/** Flagstones: each block shaded a touch differently, with mortar lines and a bevel highlight. */
 function plaza(): Tile {
   const t = fill("s");
+  const block = 8;
   for (let y = 0; y < T; y++)
     for (let x = 0; x < T; x++) {
-      const brickRow = Math.floor(y / 8);
-      const off = brickRow % 2 ? 4 : 0;
-      if (y % 8 === 7 || (x + off) % 8 === 7) t[y]![x] = "t";
-      else if (y % 8 === 0 || (x + off) % 8 === 0) t[y]![x] = "u";
+      const bx = Math.floor(x / block);
+      const by = Math.floor(y / block);
+      const inBlockX = x % block;
+      const inBlockY = y % block;
+      if (inBlockX === block - 1 || inBlockY === block - 1) {
+        t[y]![x] = "t"; // mortar
+        continue;
+      }
+      const shade = hash(bx, by, 40) - 0.5; // per-stone tone variance
+      let level = 0.55 + shade * 0.55;
+      if (inBlockX === 0 || inBlockY === 0) level += 0.22; // top/left bevel highlight
+      t[y]![x] = rampAt(STONE, level, x, y);
     }
   return t;
 }
 
 function water(seed: number): Tile {
-  const t = fill("w");
+  const t = blank();
   for (let y = 0; y < T; y++)
     for (let x = 0; x < T; x++) {
-      if (hash(x >> 2, y, seed) < 0.12 && y % 4 === 1) t[y]![x] = "y";
-      else if (hash(x, y, seed + 9) < 0.05) t[y]![x] = "x";
+      const wave = Math.sin(x * 0.6 + y * 0.35 + seed) * 0.5 + 0.5;
+      const level = 0.35 + wave * 0.35 + (hash(x, y, seed + 60) - 0.5) * 0.12;
+      t[y]![x] = rampAt(WATER, level, x, y);
     }
+  for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) if (hash(x, y, seed + 9) < 0.025) t[y]![x] = "wl";
   return t;
 }
 
@@ -193,23 +301,36 @@ function tallGrass(): Tile {
 }
 
 // ---------- Objects (transparent background) ----------
+
+/** One rounded foliage lobe, radially shaded with a top-left rim light. */
+function paintLobe(t: Tile, cx: number, cy: number, r: number, squashY = 1, seedOffset = 0) {
+  for (let y = Math.floor(cy - r * squashY - 1); y <= Math.ceil(cy + r * squashY + 1); y++)
+    for (let x = Math.floor(cx - r - 1); x <= Math.ceil(cx + r + 1); x++) {
+      if (x < 0 || y < 0 || x >= t[0]!.length || y >= t.length) continue;
+      const dx = x - cx;
+      const dy = (y - cy) / squashY;
+      const rr = Math.hypot(dx, dy) + (hash(x >> 1, y >> 1, 3 + seedOffset) - 0.5) * 1.4;
+      if (rr >= r) continue;
+      const light = (-dx - dy * squashY) / (r * 1.7) + hash(x, y, 7 + seedOffset) * 0.22;
+      t[y]![x] = rampAt(LEAF, 0.5 + light, x, y);
+    }
+}
+
+/** A layered fantasy tree: three overlapping canopy lobes, a bark trunk, and a grounding shadow. */
 function tree(): Tile[] {
   const big = blank(32, 32);
-  for (let y = 0; y < 32; y++)
-    for (let x = 0; x < 32; x++) {
-      const dx = x - 15.5;
-      const dy = y - 12;
-      const r = Math.hypot(dx, dy * 1.1) + hash(x >> 1, y >> 1, 3) * 2.2;
-      if (r < 13.5) {
-        const lightness = (-dx - dy) / 18 + hash(x >> 2, y >> 2, 5) * 0.5;
-        big[y]![x] = lightness > 0.75 ? "l" : lightness > 0.05 ? "g" : lightness > -0.6 ? "h" : "d";
-      }
+  paintLobe(big, 12, 12, 9, 0.85, 0);
+  paintLobe(big, 20, 11, 8.5, 0.85, 11);
+  paintLobe(big, 16, 7, 7.5, 0.9, 22);
+  // Trunk.
+  for (let y = 20; y < 30; y++)
+    for (let x = 13; x < 19; x++) {
+      if (y < 22 && (x < 14 || x > 17)) continue;
+      const light = (-(x - 16) - (y - 25) * 0.3) / 6;
+      big[y]![x] = rampAt(WOOD, 0.5 + light, x, y);
     }
-  for (let y = 22; y < 30; y++)
-    for (let x = 13; x < 19; x++) if (!big[y]![x] || y > 24) big[y]![x] = x < 15 ? "e" : x > 16 ? "c" : "b";
-  const shaded = outline(big);
-  for (let x = 10; x < 22; x++) if (!shaded[30]![x]) shaded[30]![x] = "d";
-  return split(shaded);
+  groundShadow(big, 16, 30, 8, 2.2);
+  return split(outline(big));
 }
 
 const BUSH = art([
@@ -241,7 +362,7 @@ const ROCK = art([
   "   KuussssstK   ",
   "  KusssssstttK  ",
   "  KssssssttttK  ",
-  "  KssssstttvvK  ",
+  "  KsssssstttvvK  ",
   "  KtsssttttvvK  ",
   "   KtttttvvvK   ",
   "    KKKKKKKK    ",
@@ -326,7 +447,9 @@ function bench(): Tile[] {
     "   KKK                    KKK   ",
     "                                ",
   ];
-  return split(art(rows));
+  const t = art(rows);
+  groundShadow(t, 16, 15, 13, 1.4);
+  return split(t);
 }
 
 function fountain(): Tile[] {
@@ -334,8 +457,14 @@ function fountain(): Tile[] {
   for (let y = 0; y < 32; y++)
     for (let x = 0; x < 32; x++) {
       const r = Math.hypot(x - 15.5, (y - 16) * 1.25);
-      if (r < 15.5)
-        big[y]![x] = r > 13 ? (y < 16 ? "u" : "t") : r > 11.5 ? "s" : hash(x >> 1, y, 4) < 0.15 ? "y" : "w";
+      if (r < 15.5) {
+        if (r > 13) big[y]![x] = y < 16 ? "u" : "t";
+        else if (r > 11.5) big[y]![x] = "s";
+        else {
+          const wave = Math.sin(x * 0.7 + y * 0.4) * 0.5 + 0.5;
+          big[y]![x] = rampAt(WATER, 0.4 + wave * 0.4, x, y);
+        }
+      }
     }
   // Centre spout with a splash.
   for (let y = 8; y < 20; y++) for (let x = 14; x < 18; x++) big[y]![x] = x < 16 ? "u" : "t";
@@ -349,8 +478,9 @@ function fountain(): Tile[] {
     [12, 8],
     [19, 8],
   ])
-    big[y!]![x!] = "y";
+    big[y!]![x!] = "wl";
   for (let x = 13; x < 19; x++) big[8]![x] = "u";
+  groundShadow(big, 16, 29, 13, 2);
   return split(outline(big));
 }
 
@@ -363,7 +493,7 @@ function portal(): Tile[] {
         if (r > 11.5) {
           const a = Math.atan2(y - 16, x - 15.5);
           big[y]![x] = Math.floor((a + Math.PI) * 3) % 2 ? "s" : "t";
-        } else big[y]![x] = r < 5 ? "O" : hash(x, y, 8) < 0.2 ? "O" : "P";
+        } else big[y]![x] = r < 5 ? "O" : hash(x, y, 8) < 0.2 ? "Og" : "P";
       }
     }
   for (const [x, y] of [
@@ -373,6 +503,7 @@ function portal(): Tile[] {
     [19, 10],
   ])
     big[y!]![x!] = "X";
+  groundShadow(big, 16, 30, 13, 1.8);
   return split(outline(big));
 }
 
@@ -411,7 +542,9 @@ function lamp(): Tile[] {
     "                ",
     "                ",
   ];
-  const [top, bottom] = [art(rows.slice(0, 16)), art(rows.slice(16, 32))];
+  const big = art(rows);
+  groundShadow(big, 8, 28, 6, 1.4);
+  const [top, bottom] = [big.slice(0, 16), big.slice(16, 32)];
   return [top, bottom];
 }
 
@@ -424,7 +557,7 @@ function noticeBoard(): Tile[] {
     " KebCCCCKbbbXXXXXbbYYYYbbCCCbcK ",
     " KebCKKCKbbbXKKKXbbYKKYbbCKCbcK ",
     " KebCCCCKbbbXXXXXbbYYYYbbCCCbcK ",
-    " KebCKKCKbbbXKKXXbbYKYYbbCKCbcK ",
+    " KebCKKKCKKCCCbcK ",
     " KebCCCCKbbbXXXXXbbYYYYbbCCCbcK ",
     " KebbbbbbbbbbbbbbbbbbbbbbbbbbcK ",
     " KccccccccccccccccccccccccccccK ",
@@ -434,15 +567,21 @@ function noticeBoard(): Tile[] {
     "    KcbK              KcbK      ",
     "   ddKKdd            ddKKdd     ",
   ];
-  return split(art(rows));
+  const t = art(rows);
+  groundShadow(t, 16, 15, 13, 1.3);
+  return split(t);
 }
 
-function roof(main: string, dark: string, part: "L" | "M" | "R"): Tile {
-  const t = fill(main);
+/** A pitched roof segment, lit ridge-to-eave with a shingle-row texture. */
+function roof(ramp: readonly string[], part: "L" | "M" | "R"): Tile {
+  const [dark, base, mid, hi] = ramp as unknown as [string, string, string, string];
+  const t = blank();
   for (let y = 0; y < T; y++)
     for (let x = 0; x < T; x++) {
-      if (y % 4 === 3) t[y]![x] = dark;
-      else if ((x + (Math.floor(y / 4) % 2) * 4) % 8 === 0) t[y]![x] = dark;
+      const ridgeLight = 1 - y / T; // brighter near the ridge (top), darker at the eave
+      let level = 0.3 + ridgeLight * 0.55;
+      if (y % 4 === 3) level -= 0.35; // shingle-row shadow line
+      t[y]![x] = rampAt([dark, mid, base, hi], level, x, y);
     }
   for (let y = 0; y < T; y++) {
     if (part === "L") {
@@ -458,7 +597,12 @@ function roof(main: string, dark: string, part: "L" | "M" | "R"): Tile {
 }
 
 function wall(kind: "plain" | "window" | "door"): Tile {
-  const t = fill("C");
+  const t = blank();
+  for (let y = 0; y < T; y++)
+    for (let x = 0; x < T; x++) {
+      const level = 0.5 + (hash(x, y, 2) - 0.5) * 0.35 + ((T - 1 - y) / T) * 0.12;
+      t[y]![x] = rampAt(WALL, level, x, y);
+    }
   for (let x = 0; x < T; x++) t[0]![x] = "D";
   for (let y = 0; y < T; y++)
     if (y % 5 === 4) for (let x = 0; x < T; x++) if (hash(x >> 3, y, 2) < 0.5) t[y]![x] = "D";
@@ -521,10 +665,10 @@ add("grass", grass(1));
 add("grass2", grass(2, true));
 add("flowersPink", flowers("F", "X", 3));
 add("flowersYellow", flowers("Y", "F", 4));
-add("path", speckle("p", "q", "r", 5));
+add("path", dirtPath(5));
 add("plaza", plaza());
 add("water", water(6), true);
-add("sand", speckle("r", "p", "u", 7, 0.12, 0.02));
+add("sand", dirtPath(7, ["pl", "r", "p"], 0.03));
 add("tallGrass", tallGrass());
 const [tTL, tTR, tBL, tBR] = tree();
 add("treeTL", tTL!);
@@ -547,12 +691,8 @@ add("lampBottom", lampBottom!, true);
 const [nbL, nbR] = noticeBoard();
 add("boardL", nbL!, true);
 add("boardR", nbR!, true);
-for (const [color, main, dark] of [
-  ["Red", "R", "Q"],
-  ["Blue", "U", "V"],
-  ["Green", "N", "M"],
-] as const)
-  for (const part of ["L", "M", "R"] as const) add(`roof${color}${part}`, roof(main, dark, part), true);
+for (const color of ["Red", "Blue", "Green"] as const)
+  for (const part of ["L", "M", "R"] as const) add(`roof${color}${part}`, roof(ROOFS[color], part), true);
 add("wall", wall("plain"), true);
 // Invisible, collision-only tile (a common Tiled convention).
 add("blocker", blank(), true);
@@ -581,7 +721,7 @@ tiles.forEach((tile, i) => {
     }),
   );
 });
-if (used.size > 32) throw new Error(`Town palette uses ${used.size} colors; the limit is 32`);
+if (used.size > 64) throw new Error(`Town palette uses ${used.size} colors; the limit is 64`);
 mkdirSync(dirname(TILES_PNG), { recursive: true });
 writeFileSync(TILES_PNG, PNG.sync.write(png));
 

@@ -22,7 +22,7 @@ async function claimDailyGift(page: Page) {
 }
 
 test.describe("homes, inventory and trading", () => {
-  test.beforeEach(async (_fixtures, testInfo) => {
+  test.beforeEach(async ({ browserName: _ }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop", "Economy tests run once, on desktop.");
     await deleteE2eUsers();
   });
